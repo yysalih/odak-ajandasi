@@ -407,18 +407,18 @@
       <div style="background:var(--bg3);border:1px dashed var(--accent);border-radius:12px;padding:10px 12px;margin-bottom:12px;display:flex;justify-content:space-between;align-items:center;">
         <div>
           <div style="font-size:10px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:0.5px;">Senin Davet Kodun</div>
-          <div style="font-size:15px;font-weight:800;color:var(--accent);letter-spacing:1px;font-family:monospace;" id="modal-my-friend-code">ODAK-....</div>
+          <div style="font-size:12px;font-weight:800;color:var(--accent);letter-spacing:0.5px;font-family:monospace;word-break:break-all;" id="modal-my-friend-code">ODAK-....</div>
         </div>
         <button type="button" class="btn-routine-pill" style="margin:0;padding:6px 12px;font-size:11px;" onclick="copyFriendCode()">📋 Kopyala</button>
       </div>
 
       <p style="font-size:11.5px;color:var(--text2);margin-bottom:12px;line-height:1.5;">
-        Arkadaşınızın kodunu girerek onu ekleyin. Birbirinizin canlı odak süresini ve haftalık yarış sıralamasını anında göreceksiniz.
+        Arkadaşının davet kodunu (veya davet bağlantısını) yapıştır. Arkadaşın isteği onaylayınca birbirinizin haftalık odak süresini görürsünüz. Mesajlar uçtan uca şifrelidir; aradaki sunucu içeriği okuyamaz.
       </p>
 
       <div class="fg" style="margin-bottom:16px;">
         <label style="font-size:11px;font-weight:700;color:var(--text3);margin-bottom:6px;display:block;">Arkadaşının Davet Kodu</label>
-        <input type="text" id="input-friend-code" placeholder="Örn: ODAK-7842 veya 7842" style="width:100%;box-sizing:border-box;font-size:14px;font-weight:700;letter-spacing:1px;padding:10px 12px;border-radius:10px;background:var(--bg3);border:1px solid var(--border);color:var(--text1);font-family:monospace;" onkeydown="if(event.key==='Enter') addNewFriend()">
+        <input type="text" id="input-friend-code" placeholder="ODAK-XXXX-XXXX-..." autocomplete="off" autocapitalize="characters" spellcheck="false" maxlength="200" style="width:100%;box-sizing:border-box;font-size:12px;font-weight:700;letter-spacing:1px;padding:10px 12px;border-radius:10px;background:var(--bg3);border:1px solid var(--border);color:var(--text1);font-family:monospace;" onkeydown="if(event.key==='Enter') addNewFriend()">
       </div>
 
       <div style="display:flex;gap:8px;">
@@ -710,6 +710,18 @@
           <button class="f-filter-pill" id="stf-month" onclick="setStatsScope('month')">Bu Ay</button>
           <button class="f-filter-pill" id="stf-week" onclick="setStatsScope('week')">Bu Hafta</button>
           <button class="f-filter-pill" id="stf-today" onclick="setStatsScope('today')">Bugün</button>
+          <button class="f-filter-pill" id="stf-range" onclick="toggleStatsRangeBox()">Tarih Aralığı</button>
+        </div>
+
+        <!-- Özel tarih aralığı filtresi -->
+        <div id="stats-range-box" style="display:none;gap:6px;align-items:flex-end;margin-bottom:10px;flex-wrap:wrap;">
+          <label style="display:flex;flex-direction:column;font-size:10.5px;color:var(--text3);font-weight:700;gap:3px;flex:1;min-width:120px;">Başlangıç
+            <input type="date" id="stats-range-from" style="padding:6px 8px;border-radius:8px;background:var(--bg3);border:1px solid var(--border);color:var(--text1);font-size:12px;">
+          </label>
+          <label style="display:flex;flex-direction:column;font-size:10.5px;color:var(--text3);font-weight:700;gap:3px;flex:1;min-width:120px;">Bitiş
+            <input type="date" id="stats-range-to" style="padding:6px 8px;border-radius:8px;background:var(--bg3);border:1px solid var(--border);color:var(--text1);font-size:12px;">
+          </label>
+          <button type="button" class="btn-primary" style="padding:8px 12px;font-size:11.5px;border-radius:8px;" onclick="applyStatsDateRange()">Uygula</button>
         </div>
 
         <!-- Ana Özet Kutuları (Toplam Odak / Ağaç / Seri) -->
@@ -815,7 +827,8 @@
                 <span style="font-size:9px;font-weight:800;padding:2px 7px;border-radius:10px;background:var(--accent-light);color:var(--accent);letter-spacing:0.5px;flex-shrink:0;">SEN</span>
               </div>
               <div style="display:flex;align-items:center;gap:4px;flex-shrink:0;">
-                <span id="friends-self-code" style="font-size:11px;font-weight:800;color:var(--accent);font-family:monospace;background:rgba(16,185,129,0.12);padding:2px 6px;border-radius:6px;border:1px dashed var(--accent);">ODAK-....</span>
+                <span id="friends-self-code" style="display:none;">ODAK-....</span>
+                <button type="button" onclick="copyFriendCode()" style="font-size:10.5px;font-weight:800;color:var(--accent);background:rgba(16,185,129,0.12);padding:2px 6px;border-radius:6px;border:1px dashed var(--accent);cursor:pointer;">Davet kodu</button>
                 <button type="button" onclick="copyFriendCode()" title="Davet Kodumu Kopyala" style="background:none;border:none;cursor:pointer;font-size:13px;padding:2px;">📋</button>
               </div>
             </div>
@@ -824,6 +837,10 @@
             </div>
           </div>
         </div>
+
+        <!-- Bağlantı durumu ve bekleyen istekler -->
+        <div id="friends-conn-status" style="font-size:10.5px;color:var(--text3);margin:-6px 0 10px;">Bağlanıyor…</div>
+        <div id="friends-requests-wrap"></div>
 
         <!-- Haftalık Liderlik Başlığı -->
         <div style="display:flex;justify-content:space-between;align-items:center;margin:0 0 10px;">
@@ -1031,7 +1048,7 @@
         <div style="background:var(--surface2);border:1px solid var(--border);border-radius:12px;padding:10px 12px;margin:8px 0;display:flex;align-items:center;justify-content:space-between;gap:8px;">
           <div style="min-width:0;flex:1;">
             <div style="font-size:11px;color:var(--text3);text-transform:uppercase;letter-spacing:0.5px;font-weight:700;">Telefonunla Gireceğin Adres:</div>
-            <div id="pwa-network-url" style="font-size:13px;font-weight:700;color:var(--accent);word-break:break-all;font-family:monospace;margin-top:2px;">http://172.20.10.4:8080</div>
+            <div id="pwa-network-url" style="font-size:13px;font-weight:700;color:var(--accent);word-break:break-all;font-family:monospace;margin-top:2px;">(bu sayfanın adresi)</div>
           </div>
           <button type="button" class="btn-routine-pill" style="margin:0;padding:6px 10px;font-size:11px;border-radius:8px;white-space:nowrap;" onclick="copyPwaUrl()">
             📋 Kopyala
@@ -1050,7 +1067,7 @@
           </div>
           <ol style="margin:0;padding-left:18px;color:var(--text2);font-size:11.5px;display:flex;flex-direction:column;gap:4px;">
             <li>Telefonunu bilgisayarla aynı Wi-Fi ağına veya Mac Kişisel Erişim Noktasına bağla.</li>
-            <li>Safari'de şu adresi aç: <strong style="color:var(--text1);">http://172.20.10.4:8080</strong></li>
+            <li>Safari'de şu adresi aç: <strong style="color:var(--text1);">bu sayfanın adresini</strong></li>
             <li>Safari alt çubuğundaki <strong style="color:var(--text1);">Paylaş (kare + yukarı ok)</strong> simgesine dokun.</li>
             <li>Açılan menüde aşağı kaydırıp <strong style="color:var(--accent);">"Ana Ekrana Ekle"</strong> seçeneğine bas ve <strong style="color:var(--accent);">"Ekle"</strong> de.</li>
           </ol>
@@ -1059,7 +1076,7 @@
             <span>🤖</span> <span>Android (Chrome) Kurulumu:</span>
           </div>
           <ol style="margin:0;padding-left:18px;color:var(--text2);font-size:11.5px;display:flex;flex-direction:column;gap:4px;">
-            <li>Chrome'da adresi aç: <strong style="color:var(--text1);">http://172.20.10.4:8080</strong></li>
+            <li>Chrome'da adresi aç: <strong style="color:var(--text1);">bu sayfanın adresini</strong></li>
             <li>Sağ üstteki <strong>üç nokta (⋮)</strong> menüsüne dokun.</li>
             <li><strong style="color:var(--accent);">"Uygulamayı Yükle"</strong> veya <strong>"Ana ekrana ekle"</strong> seçeneğine bas.</li>
           </ol>
@@ -1252,7 +1269,7 @@
           <div style="display:flex;justify-content:space-between;align-items:center;background:var(--bg);border:1px dashed var(--border);border-radius:12px;padding:10px 14px;">
             <div>
               <div style="font-size:10px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:0.5px;">Davet Kodun</div>
-              <div style="font-size:15px;font-weight:800;color:var(--accent);letter-spacing:1px;font-family:monospace;" id="my-friend-code">ODAK-8429</div>
+              <div style="font-size:12px;font-weight:800;color:var(--accent);letter-spacing:0.5px;font-family:monospace;word-break:break-all;" id="my-friend-code">ODAK-....</div>
             </div>
             <button type="button" class="btn-routine-pill" style="margin:0;padding:7px 14px;font-size:11.5px;border-radius:8px;cursor:pointer;" onclick="copyFriendCode()">
               <span>📋</span> Kodu Kopyala
@@ -1442,8 +1459,8 @@
 </div><!-- /phone -->
 </div><!-- /phone-scale-wrapper -->
 
-<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-<script src="mqttws31.min.js"></script>
+<script src="js/vendor/supabase-2.45.4.js"></script>
+<script src="js/vendor/mqttws31.min.js"></script>
 <script src="js/core.js"></script>
 <script src="js/theme-device-audio.js"></script>
 <script src="js/state.js"></script>
@@ -1453,6 +1470,7 @@
 <script src="js/account.js"></script>
 <script src="js/navigation-plan.js"></script>
 <script src="js/focus.js"></script>
+<script src="js/friend-protocol.js"></script>
 <script src="js/friends.js"></script>
 <script src="js/stats.js"></script>
 <script src="js/main.js"></script>

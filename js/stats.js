@@ -63,6 +63,11 @@ function updateStatsDateHeader(){
     subEl.textContent = isStatsCalendarOpen 
       ? 'Aylık odak dökümü · Takvimi kapat ✕' 
       : 'Aylık toplam çalışma · Takvim için dokun 📅';
+  } else if(currentStatsScope === 'range'){
+    const f = statsRange.from ? OdakCore.formatKeyTR(statsRange.from) : 'Başlangıç';
+    const t = statsRange.to ? OdakCore.formatKeyTR(statsRange.to) : 'Bugün';
+    titleEl.textContent = `${f} – ${t}`;
+    subEl.textContent = 'Seçilen tarih aralığının odak dökümü';
   } else {
     titleEl.textContent = 'Tüm Zamanlar';
     subEl.textContent = isStatsCalendarOpen 
@@ -243,9 +248,44 @@ function clearCategoryFilter(){
   renderStats();
 }
 let currentStatsScope = 'all';
+let statsRange = { from: '', to: '' };
+
+/* Özel tarih aralığı: iki tarih arasındaki (uçlar dahil) seansları gösterir. */
+function toggleStatsRangeBox(){
+  const box = document.getElementById('stats-range-box');
+  if(!box) return;
+  const open = box.style.display === 'none' || !box.style.display;
+  box.style.display = open ? 'flex' : 'none';
+  if(open){
+    const today = toDateKey(new Date());
+    const fromEl = document.getElementById('stats-range-from');
+    const toEl = document.getElementById('stats-range-to');
+    if(fromEl && !fromEl.value) fromEl.value = statsRange.from || OdakCore.addDays(today, -6);
+    if(toEl && !toEl.value) toEl.value = statsRange.to || today;
+    if(fromEl) fromEl.max = today;
+    if(toEl) toEl.max = today;
+  }
+}
+
+function applyStatsDateRange(){
+  let from = document.getElementById('stats-range-from')?.value || '';
+  let to = document.getElementById('stats-range-to')?.value || '';
+  if(from && !OdakCore.isValidDateKey(from)) from = '';
+  if(to && !OdakCore.isValidDateKey(to)) to = '';
+  if(!from && !to){
+    showAppToast('Lütfen en az bir tarih seç.', '⚠️');
+    return;
+  }
+  if(from && to && from > to){ const t = from; from = to; to = t; }
+  statsRange = { from, to };
+  currentStatsScope = 'range';
+  renderStats();
+}
 
 function setStatsScope(scope){
   currentStatsScope = scope;
+  const rangeBox = document.getElementById('stats-range-box');
+  if(rangeBox) rangeBox.style.display = 'none';
   if(scope === 'today'){
     calCurrentDate = new Date();
     calSelectedDateKey = toDateKey(new Date());
@@ -279,7 +319,7 @@ function renderStats(){
     }
   }
 
-  ['all','month','week','today'].forEach(s => {
+  ['all','month','week','today','range'].forEach(s => {
     const el = document.getElementById('stf-' + s);
     if(el) el.classList.toggle('active', s === currentStatsScope);
   });
@@ -321,6 +361,12 @@ function renderStats(){
     scopedHistory = scopedHistory.filter(h => h.rawDate >= monKey && h.rawDate <= sunKey);
     const uniqueDays = new Set(scopedHistory.map(h => h.rawDate)).size;
     metricLabel = 'Haftalık';
+    metricVal = `${uniqueDays} gün`;
+    metricSub = '🌱 aktif gün';
+  } else if(currentStatsScope === 'range'){
+    scopedHistory = OdakCore.inRange(scopedHistory, statsRange.from, statsRange.to);
+    const uniqueDays = new Set(OdakCore.successful(scopedHistory).map(h => h.rawDate)).size;
+    metricLabel = 'Aralık';
     metricVal = `${uniqueDays} gün`;
     metricSub = '🌱 aktif gün';
   } else if(currentStatsScope === 'month'){

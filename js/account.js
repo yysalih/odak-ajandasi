@@ -16,7 +16,7 @@ try {
 }
 
 let currentUser = null;
-let currentAuthToken = localStorage.getItem('ODAK_AUTH_TOKEN') || null;
+let currentAuthToken = null; // Supabase oturumundan doldurulur (checkStoredAuthToken)
 
 /* ══════════════════════════════════════════════════════
    KULLANICI PROFİLİ, AVATAR VE İSİM YÖNETİMİ
@@ -222,16 +222,10 @@ function saveProfileTitle(){
   syncUserProfileToServer();
 }
 
+// Profil adı/durum notu Supabase kullanıcı bilgisine yazılır (avatar fotoğrafı yerelde kalır).
 function syncUserProfileToServer(){
-  if(!currentAuthToken) return;
-  fetch('/api/auth/profile', {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      'Authorization': `Bearer ${currentAuthToken}`
-    },
-    body: JSON.stringify({ name: userProfile.name, avatar: userProfile.avatar, title: userProfile.title })
-  }).catch(()=>{});
+  if(!supabaseClient || !currentUser) return;
+  supabaseClient.auth.updateUser({ data: { name: userProfile.name, title: userProfile.title } }).catch(()=>{});
 }
 
 function updateCloudAuthUI(){
@@ -267,121 +261,65 @@ function updateCloudAuthUI(){
   }
 }
 
-function handleAuthRegister(){
-  const emailInp = document.getElementById('auth-input-email');
-  const passInp = document.getElementById('auth-input-password');
-  const email = emailInp?.value.trim().toLowerCase();
-  const password = passInp?.value.trim();
-
-  if(!email || !password || password.length < 6){
-    alert('Lütfen geçerli bir e-posta ve en az 6 karakterli bir şifre girin.');
-    return;
-  }
-
-  fetch('/api/auth/register', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ email, password, name: email.split('@')[0] })
-  })
-  .then(res => res.json())
-  .then(data => {
-    if(data.error){
-      alert('Kayıt Hatası: ' + data.error);
-      return;
-    }
-    currentUser = data.user;
-    if(currentUser.name) userProfile.name = currentUser.name;
-    if(currentUser.avatar) userProfile.avatar = currentUser.avatar;
-    saveUserProfileToStorage();
-    renderUserProfileUI();
-    currentAuthToken = data.token;
-    localStorage.setItem('ODAK_AUTH_TOKEN', data.token);
-    updateCloudAuthUI();
-    showAppToast(`Hoş geldin ${currentUser.name}! Hesabın oluşturuldu. 🎉`, '⚡');
-    forceCloudSyncPush();
-  })
-  .catch(async () => {
-    if(supabaseClient){
-      try {
-        const { data, error } = await supabaseClient.auth.signUp({
-          email,
-          password,
-          options: { data: { name: email.split('@')[0] } }
-        });
-        if(error) throw error;
-        if(data.session){
-          currentUser = { id: data.user.id, email: data.user.email, name: email.split('@')[0] };
-          currentAuthToken = data.session.access_token;
-          localStorage.setItem('ODAK_AUTH_TOKEN', currentAuthToken);
-          updateCloudAuthUI();
-          showAppToast(`Hoş geldin! Supabase hesabın oluşturuldu. 🎉`, '⚡');
-          forceCloudSyncPush();
-          return;
-        } else {
-          alert('Kayıt başarılı! Hesabınız oluşturuldu.');
-          return;
-        }
-      } catch(sbErr) {
-        alert('Supabase Kayıt Hatası: ' + sbErr.message);
-        return;
-      }
-    }
-    alert('Sunucu veya internet bağlantı hatası.');
-  });
+/*
+ * Hesap işlemleri doğrudan Supabase Auth ile yapılır.
+ * Eskiden önce /api/auth/... adreslerine istek atılıyordu; bu adresler
+ * GitHub Pages'te yok (sadece geliştiricinin yerel sunucusunda vardı), her
+ * seferinde 404 alınıp Supabase'e düşülüyordu.
+ * Veri güvenliği Supabase tarafındaki satır güvenliği (RLS) kurallarına
+ * dayanır: bkz. supabase/schema.sql
+ */
+function readAuthForm(){
+  const email = (document.getElementById('auth-input-email')?.value || '').trim().toLowerCase();
+  const password = document.getElementById('auth-input-password')?.value || '';
+  return { email, password };
 }
 
-function handleAuthLogin(){
-  const emailInp = document.getElementById('auth-input-email');
-  const passInp = document.getElementById('auth-input-password');
-  const email = emailInp?.value.trim().toLowerCase();
-  const password = passInp?.value.trim();
+function onSignedIn(user, session, isNew){
+  currentUser = { id: user.id, email: user.email, name: user.user_metadata?.name || user.email.split('@')[0] };
+  currentAuthToken = session ? session.access_token : null;
+  if(currentUser.name) userProfile.name = currentUser.name;
+  saveUserProfileToStorage();
+  renderUserProfileUI();
+  updateCloudAuthUI();
+  try { renderFriends(); } catch(e){}
+  if(isNew){
+    showAppToast('Hesabın oluşturuldu, verilerin buluta yedekleniyor.', '⚡');
+    forceCloudSyncPush();
+  } else {
+    showAppToast('Giriş yapıldı, verilerin buluttan alınıyor…', '⚡');
+    forceCloudSyncPull();
+  }
+}
 
-  if(!email || !password){
-    alert('Lütfen e-posta ve şifrenizi girin.');
+async function handleAuthRegister(){
+  const { email, password } = readAuthForm();
+  if(!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email) || password.length < 8){
+    alert('Lütfen geçerli bir e-posta ve en az 8 karakterli bir şifre girin.');
     return;
   }
+  if(!supabaseClient){ alert('Bulut bağlantısı kurulamadı.'); return; }
+  try {
+    const { data, error } = await supabaseClient.auth.signUp({ email, password, options: { data: { name: email.split('@')[0] } } });
+    if(error) throw error;
+    if(data.session) onSignedIn(data.user, data.session, true);
+    else alert('Kayıt alındı. E-postana gelen doğrulama bağlantısına tıkladıktan sonra giriş yapabilirsin.');
+  } catch(err){
+    alert('Kayıt yapılamadı: ' + (err.message || err));
+  }
+}
 
-  fetch('/api/auth/login', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ email, password })
-  })
-  .then(res => res.json())
-  .then(data => {
-    if(data.error){
-      alert('Giriş Başarısız: ' + data.error);
-      return;
-    }
-    currentUser = data.user;
-    if(currentUser.name) userProfile.name = currentUser.name;
-    if(currentUser.avatar) userProfile.avatar = currentUser.avatar;
-    saveUserProfileToStorage();
-    renderUserProfileUI();
-    currentAuthToken = data.token;
-    localStorage.setItem('ODAK_AUTH_TOKEN', data.token);
-    updateCloudAuthUI();
-    showAppToast(`Giriş yapıldı! Verilerin eşitleniyor... 🔄`, '⚡');
-    forceCloudSyncPull();
-  })
-  .catch(async () => {
-    if(supabaseClient){
-      try {
-        const { data, error } = await supabaseClient.auth.signInWithPassword({ email, password });
-        if(error) throw error;
-        currentUser = { id: data.user.id, email: data.user.email, name: data.user.user_metadata?.name || email.split('@')[0] };
-        currentAuthToken = data.session.access_token;
-        localStorage.setItem('ODAK_AUTH_TOKEN', currentAuthToken);
-        updateCloudAuthUI();
-        showAppToast(`Giriş yapıldı! Supabase bulut verilerin çekiliyor... 🔄`, '⚡');
-        forceCloudSyncPull();
-        return;
-      } catch(sbErr) {
-        alert('Supabase Giriş Hatası: ' + sbErr.message);
-        return;
-      }
-    }
-    alert('Sunucu veya internet bağlantı hatası.');
-  });
+async function handleAuthLogin(){
+  const { email, password } = readAuthForm();
+  if(!email || !password){ alert('Lütfen e-posta ve şifrenizi girin.'); return; }
+  if(!supabaseClient){ alert('Bulut bağlantısı kurulamadı.'); return; }
+  try {
+    const { data, error } = await supabaseClient.auth.signInWithPassword({ email, password });
+    if(error) throw error;
+    onSignedIn(data.user, data.session, false);
+  } catch(err){
+    alert('Giriş yapılamadı: ' + (err.message || err));
+  }
 }
 
 function resetAllApplicationData(isLogout = false){
@@ -392,20 +330,7 @@ function resetAllApplicationData(isLogout = false){
   try { stopAmbientSound(); } catch(e){}
   try { closeSideDrawer(); } catch(e){}
 
-  // 2. Sunucu ve bulut oturumunu kapat
-  const prevToken = currentAuthToken;
-  if(prevToken){
-    try {
-      fetch('/api/auth/logout', {
-        method: 'POST',
-        headers: { 
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${prevToken}`
-        }
-      }).catch(()=>{});
-    } catch(e){}
-  }
-
+  // 2. Bulut oturumunu kapat
   if(supabaseClient) {
     try { supabaseClient.auth.signOut(); } catch(e){}
   }
@@ -434,9 +359,6 @@ function resetAllApplicationData(isLogout = false){
 
   if(typeof DEFAULT_ROUTINES !== 'undefined'){
     userRoutines = JSON.parse(JSON.stringify(DEFAULT_ROUTINES));
-  }
-  if(typeof DEFAULT_FRIENDS !== 'undefined'){
-    friendsList = JSON.parse(JSON.stringify(DEFAULT_FRIENDS));
   }
 
   // 5. Tarayıcı depolama alanlarını (localStorage & sessionStorage) tamamen temizle
@@ -487,6 +409,8 @@ function resetAllApplicationData(isLogout = false){
   }
 
   showAppToast(isLogout ? 'Hesaptan çıkış yapıldı ve tüm analizler & dökümler sıfırlandı. 🌿' : 'Tüm veriler, analizler ve dökümler sıfırlandı! 🧹', '🧹');
+  // Arkadaşlık anahtarı da silindi; bellekteki eski anahtarın tekrar kaydedilmemesi için sayfayı yeniden yükle.
+  setTimeout(() => location.reload(), 1200);
 }
 
 function handleAuthLogout(){
@@ -496,274 +420,137 @@ function handleAuthLogout(){
 window.resetAllApplicationData = resetAllApplicationData;
 window.handleAuthLogout = handleAuthLogout;
 
-let syncDebounceTimer = null;
+let cloudPushTimer = null;
 
-function forceCloudSyncPush(newSession = null){
-  if(!currentAuthToken) return;
-  
-  const payload = {
-    tasks,
-    focusHistory,
-    inbox,
-    streakDays,
-    dailyNotes,
-    autoMode,
-    manualDark,
-    soundEnabled,
-    dailyGoalMinutes,
-    friendsList,
-    new_session: newSession
-  };
+function collectSyncPayload(){
+  return { tasks, focusHistory, inbox, dailyNotes, userRoutines, dailyGoalMinutes };
+}
 
-  fetch('/api/cloud/push', {
-    method: 'POST',
-    headers: { 
-      'Content-Type': 'application/json',
-      'Authorization': `Bearer ${currentAuthToken}`
-    },
-    body: JSON.stringify(payload)
-  })
-  .then(res => res.json())
-  .then(data => {
+// Buluttan (veya eski kayıttan) gelen veri, yedek dosyasıyla AYNI doğrulamadan geçer.
+function applyValidatedState(raw){
+  const { data, report } = OdakCore.sanitizeBackup(raw, toDateKey(new Date()));
+  if(data.tasks) tasks = data.tasks.filter(t => !isMockStatsEntry(t));
+  if(data.focusHistory) focusHistory = data.focusHistory.filter(h => !isMockStatsEntry(h));
+  if(data.inbox) inbox = data.inbox;
+  if(data.dailyNotes) dailyNotes = data.dailyNotes;
+  if(data.userRoutines && data.userRoutines.length) userRoutines = data.userRoutines;
+  if(data.dailyGoalMinutes) dailyGoalMinutes = data.dailyGoalMinutes;
+  streakDays = calculateStreakDays();
+  return report;
+}
+
+async function forceCloudSyncPush(){
+  if(!supabaseClient || !currentUser) return;
+  try {
+    const { error } = await supabaseClient.from('user_state').upsert({
+      user_id: currentUser.id,
+      tasks,
+      focus_history: focusHistory,
+      inbox,
+      daily_notes: dailyNotes,
+      daily_goal_minutes: dailyGoalMinutes,
+      updated_at: new Date().toISOString()
+    });
+    if(error) throw error;
     const lbl = document.getElementById('cloud-last-sync-label');
     const nowTime = new Date().toLocaleTimeString('tr-TR', { hour:'2-digit', minute:'2-digit' });
-    if(lbl) lbl.textContent = `Son senkronizasyon: ${nowTime} (Supabase PostgreSQL)`;
-    showAppToast('Verilerin Supabase bulut veritabanına yedeklendi! ⚡', '✅');
-  })
-  .catch(async () => {
-    if(supabaseClient && currentUser){
-      try {
-        await supabaseClient.from('user_state').upsert({
-          user_id: currentUser.id,
-          tasks,
-          focus_history: focusHistory,
-          inbox,
-          daily_notes: dailyNotes,
-          streak_days: streakDays,
-          daily_goal_minutes: dailyGoalMinutes,
-          friends_list: friendsList
-        });
-        const lbl = document.getElementById('cloud-last-sync-label');
-        if(lbl) lbl.textContent = `Son senkronizasyon: Az önce (Supabase Doğrudan)`;
-      } catch(e) {
-        console.warn('Supabase direct push error:', e);
-      }
-    }
-  });
-}
-
-function forceCloudSyncPull(){
-  if(!currentAuthToken) return;
-
-  fetch('/api/cloud/pull', {
-    headers: { 'Authorization': `Bearer ${currentAuthToken}` }
-  })
-  .then(res => res.json())
-  .then(res => {
-    if(res.status === 'ok' && res.data){
-      const d = res.data;
-      if(Array.isArray(d.tasks)) tasks = d.tasks.filter(t => !isMockStatsEntry(t));
-      if(Array.isArray(d.focusHistory)) focusHistory = d.focusHistory.filter(h => !isMockStatsEntry(h));
-      if(Array.isArray(d.inbox)) inbox = d.inbox;
-      if(d.dailyNotes && typeof d.dailyNotes === 'object') dailyNotes = d.dailyNotes;
-      if(Array.isArray(d.friendsList)) friendsList = d.friendsList;
-      if(typeof d.streakDays === 'number') streakDays = d.streakDays;
-      if(typeof d.dailyGoalMinutes === 'number') dailyGoalMinutes = d.dailyGoalMinutes;
-
-      saveStateToStorage();
-      renderMain();
-      renderForest();
-      renderStats();
-      updateDailyGoalUI();
-      try { renderFriends(); } catch(e){}
-      showAppToast('Tüm geçmişin ve ağaçların Supabase bulutundan yüklendi! ⚡🌲', '🎉');
-    } else if(res.status === 'empty'){
-      forceCloudSyncPush();
-    }
-  })
-  .catch(async () => {
-    if(supabaseClient && currentUser){
-      try {
-        const { data, error } = await supabaseClient
-          .from('user_state')
-          .select('*')
-          .eq('user_id', currentUser.id)
-          .single();
-        if(data && !error){
-          if(Array.isArray(data.tasks)) tasks = data.tasks.filter(t => !isMockStatsEntry(t));
-          if(Array.isArray(data.focus_history)) focusHistory = data.focus_history.filter(h => !isMockStatsEntry(h));
-          if(Array.isArray(data.inbox)) inbox = data.inbox;
-          if(data.daily_notes) dailyNotes = data.daily_notes;
-          if(Array.isArray(data.friends_list)) friendsList = data.friends_list;
-          if(typeof data.streak_days === 'number') streakDays = data.streak_days;
-          if(typeof data.daily_goal_minutes === 'number') dailyGoalMinutes = data.daily_goal_minutes;
-          saveStateToStorage();
-          renderMain();
-          renderForest();
-          renderStats();
-          updateDailyGoalUI();
-          try { renderFriends(); } catch(e){}
-          showAppToast('Verilerin Supabase bulutundan yüklendi! ⚡', '🎉');
-        }
-      } catch(e){}
-    }
-  });
-}
-
-function checkStoredAuthToken(){
-  if(!currentAuthToken) {
-    updateCloudAuthUI();
-    return;
+    if(lbl) lbl.textContent = `Son senkronizasyon: ${nowTime}`;
+  } catch(e){
+    console.warn('Bulut yedekleme hatası:', e);
   }
-  fetch('/api/auth/me', {
-    headers: { 'Authorization': `Bearer ${currentAuthToken}` }
-  })
-  .then(res => res.json())
-  .then(data => {
-    if(data.status === 'ok' && data.user){
-      currentUser = data.user;
-      if(currentUser.name && currentUser.name !== 'Kullanıcı') {
-        userProfile.name = currentUser.name;
-      } else if(userProfile.name && userProfile.name !== 'Odak Kullanıcısı') {
-        currentUser.name = userProfile.name;
-      }
-
-      const isCustomLocalAvatar = userProfile.avatar && userProfile.avatar !== '👤' && userProfile.avatar !== '🧑‍💻';
-      const isCustomServerAvatar = currentUser.avatar && currentUser.avatar !== '👤' && currentUser.avatar !== '🧑‍💻';
-
-      if(isCustomServerAvatar){
-        userProfile.avatar = currentUser.avatar;
-      } else if(isCustomLocalAvatar){
-        currentUser.avatar = userProfile.avatar;
-        syncUserProfileToServer();
-      } else if(currentUser.avatar){
-        userProfile.avatar = currentUser.avatar;
-      }
-
-      saveUserProfileToStorage();
-      renderUserProfileUI();
-      updateCloudAuthUI();
-      try { renderFriends(); } catch(e){}
-      forceCloudSyncPull();
-    } else {
-      currentUser = null;
-      currentAuthToken = null;
-      localStorage.removeItem('ODAK_AUTH_TOKEN');
-      updateCloudAuthUI();
-    }
-  })
-  .catch(async () => {
-    if(supabaseClient && currentAuthToken){
-      try {
-        const { data: { user }, error } = await supabaseClient.auth.getUser(currentAuthToken);
-        if(user && !error){
-          currentUser = { id: user.id, email: user.email, name: user.user_metadata?.name || user.email.split('@')[0] };
-          updateCloudAuthUI();
-          forceCloudSyncPull();
-          return;
-        }
-      } catch(e){}
-    }
-    updateCloudAuthUI();
-  });
 }
 
-let isSqliteConnected = false;
-let lastSqliteSyncTime = 0;
-
-function syncToSqliteDatabase(){
-  const payload = {
-    tasks,
-    focusHistory,
-    inbox,
-    streakDays,
-    dailyNotes,
-    autoMode,
-    manualDark,
-    soundEnabled,
-    dailyGoalMinutes,
-    friendsList
-  };
-  
-  const headers = { 'Content-Type': 'application/json' };
-  if(currentAuthToken) headers['Authorization'] = `Bearer ${currentAuthToken}`;
-  fetch('/api/sync', {
-    method: 'POST',
-    headers: headers,
-    body: JSON.stringify(payload)
-  })
-  .then(res => res.json())
-  .then(data => {
-    isSqliteConnected = true;
-    lastSqliteSyncTime = Date.now();
-    updateSqliteBadgeUI(true);
-  })
-  .catch(err => {
-    // Sunucu açık değilse (file:// üzerinden çalışılıyorsa) sessizce localStorage devam eder
-    isSqliteConnected = false;
-    updateSqliteBadgeUI(false);
-  });
-}
-
-function updateSqliteBadgeUI(connected){
-  // updateCloudAuthUI ile birleştirildi
-}
-
-function saveStateToStorage(){
+async function forceCloudSyncPull(){
+  if(!supabaseClient || !currentUser) return;
   try {
-    const payload = {
-      version: '2.0',
-      savedAt: Date.now(),
+    const { data, error } = await supabaseClient.from('user_state').select('*').eq('user_id', currentUser.id).maybeSingle();
+    if(error) throw error;
+    if(!data){ forceCloudSyncPush(); return; }
+    applyValidatedState({
+      tasks: data.tasks, focusHistory: data.focus_history, inbox: data.inbox,
+      dailyNotes: data.daily_notes, dailyGoalMinutes: data.daily_goal_minutes
+    });
+    saveStateToStorage();
+    renderMain();
+    renderForest();
+    renderStats();
+    updateDailyGoalUI();
+    try { renderFriends(); } catch(e){}
+    showAppToast('Verilerin buluttan yüklendi.', '☁️');
+  } catch(e){
+    console.warn('Buluttan okuma hatası:', e);
+  }
+}
+
+async function checkStoredAuthToken(){
+  if(!supabaseClient){ updateCloudAuthUI(); return; }
+  try {
+    const { data } = await supabaseClient.auth.getSession();
+    const session = data && data.session;
+    if(session && session.user){
+      const u = session.user;
+      currentUser = { id: u.id, email: u.email, name: u.user_metadata?.name || u.email.split('@')[0] };
+      currentAuthToken = session.access_token;
+      updateCloudAuthUI();
+      forceCloudSyncPull();
+      return;
+    }
+  } catch(e){}
+  currentUser = null;
+  currentAuthToken = null;
+  try { localStorage.removeItem('ODAK_AUTH_TOKEN'); } catch(e){}
+  updateCloudAuthUI();
+}
+
+let lastSavedStateJson = '';
+
+// Değişiklik varsa yerel depoya yazar; giriş yapılmışsa 5 sn sonra buluta da gönderir.
+function saveStateToStorage(){
+  let json = '';
+  try {
+    json = JSON.stringify({
+      version: '3.0',
       tasks,
       focusHistory,
       inbox,
-      streakDays,
       dailyNotes,
       userRoutines,
       autoMode,
       manualDark,
       soundEnabled,
-      planRemindersEnabled,
-      friendsList
-    };
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(payload));
-  } catch(e){
-    // Depolama alanı dolu veya kapalıysa sessizce geç
+      planRemindersEnabled
+    });
+  } catch(e){ return; }
+  if(json === lastSavedStateJson) return;
+  lastSavedStateJson = json;
+  try { localStorage.setItem(STORAGE_KEY, json); } catch(e){ /* depolama dolu/kapalı */ }
+
+  if(currentUser){
+    clearTimeout(cloudPushTimer);
+    cloudPushTimer = setTimeout(forceCloudSyncPush, 5000);
   }
-  
-  // SQLite & Supabase arka plan senkronizasyonu (Debounced - 2 saniye bekleme ile toplu istek)
-  clearTimeout(syncDebounceTimer);
-  syncDebounceTimer = setTimeout(() => {
-    syncToSqliteDatabase();
-  }, 2000);
 }
 
 function loadStateFromStorage(){
   try {
     const raw = localStorage.getItem(STORAGE_KEY);
-    if(raw){
-      const data = JSON.parse(raw);
-      if(Array.isArray(data.tasks)) tasks = data.tasks.filter(t => !isMockStatsEntry(t));
-      if(Array.isArray(data.focusHistory)) focusHistory = data.focusHistory.filter(h => !isMockStatsEntry(h));
-      if(Array.isArray(data.inbox)) inbox = data.inbox;
-      if(Array.isArray(data.friendsList) && data.friendsList.length > 0) friendsList = data.friendsList;
-      if(data.dailyNotes && typeof data.dailyNotes === 'object') dailyNotes = data.dailyNotes;
-      if(Array.isArray(data.userRoutines) && data.userRoutines.length > 0) userRoutines = data.userRoutines;
-      if(typeof data.streakDays === 'number') streakDays = data.streakDays;
-      if(typeof data.autoMode === 'boolean') autoMode = data.autoMode;
-      if(typeof data.manualDark === 'boolean') manualDark = data.manualDark;
-      if(typeof data.soundEnabled === 'boolean') soundEnabled = data.soundEnabled;
-      if(typeof data.planRemindersEnabled === 'boolean') planRemindersEnabled = data.planRemindersEnabled;
-      
-      streakDays = calculateStreakDays();
-      saveStateToStorage();
-      return true;
+    if(!raw) return false;
+    const data = JSON.parse(raw);
+    const report = applyValidatedState(data);
+    if(report.tasksDropped || report.historyDropped){
+      console.warn('Yerel kayıtta geçersiz veri atlandı:', report);
     }
+    if(typeof data.autoMode === 'boolean') autoMode = data.autoMode;
+    if(typeof data.manualDark === 'boolean') manualDark = data.manualDark;
+    if(typeof data.soundEnabled === 'boolean') soundEnabled = data.soundEnabled;
+    if(typeof data.planRemindersEnabled === 'boolean') planRemindersEnabled = data.planRemindersEnabled;
+    return true;
   } catch(e){
     console.warn('Storage read error:', e);
   }
   return false;
 }
 
-// Her saniye sessizce arka planda yedekle
-setInterval(saveStateToStorage, 1000);
+// Güvenlik ağı: her 5 sn'de bir değişiklik var mı bak (değişmediyse hiçbir şey yazılmaz).
+setInterval(saveStateToStorage, 5000);
+window.addEventListener('pagehide', saveStateToStorage);

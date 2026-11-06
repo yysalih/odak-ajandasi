@@ -35,14 +35,6 @@ const DEFAULT_ROUTINES = [
 
 let userRoutines = JSON.parse(JSON.stringify(DEFAULT_ROUTINES));
 
-const DEFAULT_FRIENDS = [
-  { id: 'f1', name: 'Zeynep Kaya', avatar: '👩‍💻', code: 'ODAK-1042', status: 'focus', currentTask: 'Algoritma & Veri Yapıları', weeklyMinutes: 840, trees: 14, isOnline: true, cheersReceived: 3 },
-  { id: 'f2', name: 'Emre Yılmaz', avatar: '👨‍🎨', code: 'ODAK-5521', status: 'focus', currentTask: 'UI Tasarım Sistemi Revizesi', weeklyMinutes: 720, trees: 12, isOnline: true, cheersReceived: 5 },
-  { id: 'f3', name: 'Selin Demir', avatar: '👩‍🔬', code: 'ODAK-3982', status: 'break', currentTask: 'Kahve Molası ☕', weeklyMinutes: 610, trees: 10, isOnline: true, cheersReceived: 2 },
-  { id: 'f4', name: 'Can Polat', avatar: '👨‍💻', code: 'ODAK-7119', status: 'idle', currentTask: 'Çevrimdışı', weeklyMinutes: 450, trees: 8, isOnline: false, cheersReceived: 0 },
-  { id: 'f5', name: 'Mert Aksoy', avatar: '🧑‍🚀', code: 'ODAK-9923', status: 'idle', currentTask: 'Çevrimdışı', weeklyMinutes: 380, trees: 6, isOnline: false, cheersReceived: 1 }
-];
-
 function openRoutinesModal(){
   const formatter = new Intl.DateTimeFormat('tr-TR', { day:'numeric', month:'long', weekday:'long' });
   const dateStr = formatter.format(activeDate);
@@ -157,7 +149,7 @@ function saveNewRoutine(){
     return;
   }
   const cat = document.getElementById('nr-cat').value.trim() || 'Genel';
-  const dur = parseInt(document.getElementById('nr-dur').value) || 30;
+  const dur = OdakCore.clampInt(document.getElementById('nr-dur').value, 1, 180, 30);
   const start = document.getElementById('nr-start').value || '08:30';
   const end = document.getElementById('nr-end').value || '09:00';
 

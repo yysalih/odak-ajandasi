@@ -226,6 +226,10 @@ function setQuickDur(mins){
 function quickExtendTask(taskId, addMins){
   const t = tasks.find(x => x.id === taskId);
   if(!t) return;
+  if((t.dur || 25) + addMins > 180){
+    showAppToast('Bir seans en fazla 180 dk olabilir.', '⚠️');
+    return;
+  }
   t.dur = (t.dur || 25) + addMins;
   renderMain();
   try { renderStats(); renderForest(); } catch(e){}

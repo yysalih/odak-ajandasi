@@ -41,6 +41,13 @@ test('eski sürüm verisi: geçmişi olmayan tamamlanmış görev yine sayılır
   assert.equal(list[0].isTask, true);
 });
 
+test('pes edince kurutulan ağaç, görevi done kalsa bile sayılmaz', () => {
+  const tasks = [plannedTask({ done: true, tree: true })];
+  const history = [session({ failed: true, treeType: '🥀' })];
+  const list = C.buildSessionList(tasks, history, { todayKey: TODAY });
+  assert.equal(C.sumMinutes(C.successful(list)), 0);
+});
+
 test('pes edilen seanslar dakikaya, seriye ve kilide eklenmez', () => {
   const history = [
     session({ rawDate: TODAY, failed: true, treeType: '🥀', dur: 180 }),

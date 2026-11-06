@@ -657,18 +657,9 @@ function startFocus(resumeExisting = false){
     try { Notification.requestPermission().catch(()=>{}); } catch(e){}
   }
 
-  // Service Worker'a zamanlayıcı bitişini bildir (uygulama kapansa bile bildirim gelsin)
-  if ('serviceWorker' in navigator && navigator.serviceWorker.controller) {
-    try {
-      navigator.serviceWorker.controller.postMessage({
-        type: 'SCHEDULE_FOCUS_COMPLETION',
-        targetEndTime: focusTargetEndTime,
-        taskTitle: activeTask?.title,
-        treeType: activeTask?.treeType,
-        treeName: activeTask?.treeName
-      });
-    } catch(e){}
-  }
+  // Not: Bitiş bildirimi Service Worker'da setTimeout ile zamanlanmıyor; tarayıcı SW'yi
+  // birkaç dakika içinde durdurduğu için bu güvenilir değildi. Bitiş anı focusTargetEndTime
+  // ile saklanır, uygulama açıkken veya tekrar açıldığında zaman damgasından hesaplanır.
 
   saveActiveFocusSessionState();
   
@@ -854,18 +845,9 @@ function resumeFocusFromBreak(){
   updateTopBackButton();
   showAppToast('🌿 Odak seansına devam ediliyor!', '🌱');
   
-  // Service Worker'a yeni bitişi bildir
-  if ('serviceWorker' in navigator && navigator.serviceWorker.controller) {
-    try {
-      navigator.serviceWorker.controller.postMessage({
-        type: 'SCHEDULE_FOCUS_COMPLETION',
-        targetEndTime: focusTargetEndTime,
-        taskTitle: activeTask?.title,
-        treeType: activeTask?.treeType,
-        treeName: activeTask?.treeName
-      });
-    } catch(e){}
-  }
+  // Not: Bitiş bildirimi Service Worker'da setTimeout ile zamanlanmıyor; tarayıcı SW'yi
+  // birkaç dakika içinde durdurduğu için bu güvenilir değildi. Bitiş anı focusTargetEndTime
+  // ile saklanır, uygulama açıkken veya tekrar açıldığında zaman damgasından hesaplanır.
 
   if (document.hidden) {
     ensureLockScreenAudio();
@@ -1040,9 +1022,6 @@ function failFocus(removedTreeInfo){
   stopLockScreenAudio();
   clearLockScreenMediaSession();
   closeLockScreenOngoingNotification();
-  if ('serviceWorker' in navigator && navigator.serviceWorker.controller) {
-    try { navigator.serviceWorker.controller.postMessage({ type: 'CANCEL_FOCUS_COMPLETION' }); } catch(e){}
-  }
   localStorage.removeItem('ODAK_ACTIVE_FOCUS');
   isFocusing = false;
   isBreakMode = false;
@@ -1161,9 +1140,6 @@ function completeFocus(){
   stopLockScreenAudio();
   clearLockScreenMediaSession();
   closeLockScreenOngoingNotification();
-  if ('serviceWorker' in navigator && navigator.serviceWorker.controller) {
-    try { navigator.serviceWorker.controller.postMessage({ type: 'CANCEL_FOCUS_COMPLETION' }); } catch(e){}
-  }
   localStorage.removeItem('ODAK_ACTIVE_FOCUS');
   isFocusing = false;
   isBreakMode = false;

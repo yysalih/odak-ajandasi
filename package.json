@@ -1,0 +1,18 @@
+{
+  "name": "odak-ajandasi",
+  "version": "3.0.0",
+  "private": true,
+  "description": "Pomodoro + zaman bloklama PWA (statik site, derleme adımı yok)",
+  "scripts": {
+    "start": "node tests/helpers/static-server.js 8080",
+    "test": "node --test tests/unit/*.test.js",
+    "test:e2e": "node --test --test-concurrency=1 tests/e2e/*.test.js",
+    "test:all": "npm test && npm run test:e2e"
+  },
+  "devDependencies": {
+    "aedes": "^0.51.3",
+    "playwright": "^1.48.0",
+    "ws": "^8.18.0"
+  },
+  "license": "MIT"
+}

@@ -139,72 +139,28 @@ function dismissIntroSplashNow() {
 window.dismissIntroSplashNow = dismissIntroSplashNow;
 setTimeout(dismissIntroSplashNow, 850);
 
-// 3. Sunucu Sürüm Kontrolü ve Canlı Güncelleme Sistemi
+// 3. Güncelleme kontrolü
+// Eskiden her 25 saniyede bir /api/version isteniyordu. Bu adres GitHub Pages'te
+// yok (her seferinde 404). Artık tarayıcının kendi Service Worker güncelleme
+// mekanizması kullanılıyor: sayfa her açıldığında ve görünür olduğunda sw.js
+// kontrol edilir; sw.js değiştiyse yeni sürüm kurulur.
 async function checkAppUpdate(silent = true) {
-  if (isUpdatingApp) return;
   try {
-    const res = await fetch('/api/version?_t=' + Date.now(), { cache: 'no-store' });
-    if (res.ok) {
-      const data = await res.json();
-      if (data && data.version) {
-        const badge = document.getElementById('app-version-badge');
-        if (badge) {
-          const d = data.buildTime ? new Date(data.buildTime * 1000) : new Date();
-          const timeStr = d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-          badge.innerText = 'v.' + data.version.replace('v_', '') + ' (' + timeStr + ')';
-        }
-
-        if (!currentAppVersion) {
-          currentAppVersion = data.version;
-        } else if (currentAppVersion !== data.version) {
-          console.log('🚀 Yeni sürüm tespit edildi:', data.version, 'Mevcut:', currentAppVersion);
-          isUpdatingApp = true;
-          showToast('⚡ Uygulama güncellendi! Yeni sürüm yükleniyor...');
-          
-          if ('caches' in window) {
-            const keys = await caches.keys();
-            await Promise.all(keys.map(k => caches.delete(k)));
-          }
-          if ('serviceWorker' in navigator) {
-            const regs = await navigator.serviceWorker.getRegistrations();
-            for (let r of regs) {
-              try { await r.update(); } catch(e){}
-            }
-          }
-          setTimeout(() => {
-            window.location.href = window.location.pathname + '?v=' + data.version;
-          }, 600);
-          return;
-        }
-      }
-    }
-    if (!silent) {
-      showToast('✅ Uygulamanız en son güncel sürümde!');
-    }
+    if (!('serviceWorker' in navigator)) return;
+    const reg = await navigator.serviceWorker.getRegistration();
+    if (reg) await reg.update();
+    if (!silent) showToast('Güncelleme kontrol edildi.');
   } catch (err) {
-    if (!silent) {
-      showToast('⚠️ Güncelleme sunucusuna erişilemedi');
-    }
+    if (!silent) showToast('⚠️ Güncelleme kontrol edilemedi');
   }
 }
-
-// Uygulama açılışı ve introyu engellememek için 3.5 saniye sonra sessiz kontrol et
-setTimeout(() => checkAppUpdate(true), 3500);
-
-// Kullanıcı telefonun ekranını açtığında / uygulamaya geri döndüğünde anında güncelleme kontrolü yap
 document.addEventListener('visibilitychange', () => {
-  if (document.visibilityState === 'visible') {
-    checkAppUpdate(true);
-  }
+  if (document.visibilityState === 'visible') checkAppUpdate(true);
 });
-window.addEventListener('focus', () => {
-  checkAppUpdate(true);
-});
-
-// Her 25 saniyede bir periyodik kontrol
-setInterval(() => {
-  checkAppUpdate(true);
-}, 25000);
+try {
+  const badge = document.getElementById('app-version-badge');
+  if (badge) badge.textContent = 'Sürüm: odak-pwa-v14';
+} catch(e){}
 
 // 3. Kullanıcı Tarafından Manuel Zorla Güncelleme
 async function forceAppUpdate() {
@@ -256,7 +212,7 @@ function triggerPwaInstall() {
 
 function copyPwaUrl() {
   const urlEl = document.getElementById('pwa-network-url');
-  const url = (urlEl && urlEl.innerText.trim()) ? urlEl.innerText.trim() : (window.location.origin || 'http://172.20.10.4:8080');
+  const url = (urlEl && urlEl.innerText.trim()) ? urlEl.innerText.trim() : window.location.href;
   if (navigator.clipboard && navigator.clipboard.writeText) {
     navigator.clipboard.writeText(url).then(() => {
       showToast('📋 Bağlantı panoya kopyalandı: ' + url);

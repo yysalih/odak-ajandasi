@@ -113,7 +113,8 @@
       if (!h || typeof h !== 'object' || isExcluded(h)) return;
       const rawDate = isValidDateKey(h.rawDate) ? h.rawDate : fallbackKey;
       const failed = !!h.failed || h.treeType === '🥀';
-      if (h.taskId !== undefined && h.taskId !== null && !failed) coveredTaskIds.add(String(h.taskId));
+      // Bu görevin geçmiş kaydı varsa (başarılı ya da sonradan kurutulmuş) görev ayrıca sayılmaz.
+      if (h.taskId !== undefined && h.taskId !== null) coveredTaskIds.add(String(h.taskId));
       list.push({
         id: h.id,
         taskId: h.taskId ?? null,
@@ -236,7 +237,9 @@
     const id = Number(h.id);
     if (!Number.isFinite(id)) return null;
     if (!isValidDateKey(h.rawDate) || h.rawDate > todayKey) return null; // gelecekte seans olamaz
-    if (!isIntInRange(Number(h.dur), 1, MAX_SESSION_MIN)) return null;
+    // 1..1440 dışı (ör. 99999) süre sahte kabul edilir ve atılır; eski sürümde +15 ile
+    // 180'i aşmış gerçek seanslar silinmesin diye 180'e kırpılır.
+    if (!isIntInRange(Number(h.dur), 1, MAX_DAY_MIN)) return null;
     const failed = !!h.failed || h.treeType === '🥀';
     return {
       id,
@@ -245,7 +248,7 @@
       cat: cleanText(h.cat, 40),
       treeType: failed ? '🥀' : (ALLOWED_TREES.includes(h.treeType) ? h.treeType : '🌳'),
       treeName: cleanText(h.treeName, 40) || (failed ? 'Kurumuş Ağaç' : 'Meşe'),
-      dur: Number(h.dur),
+      dur: Math.min(MAX_SESSION_MIN, Number(h.dur)),
       time: typeof h.time === 'string' && /^\d{2}[:.]\d{2}$/.test(h.time) ? h.time : '',
       date: formatKeyTR(h.rawDate),
       rawDate: h.rawDate,

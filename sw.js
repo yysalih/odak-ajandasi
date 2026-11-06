@@ -3,7 +3,8 @@ const STATIC_ASSETS = [
   './',
   'index.html',
   'manifest.json',
-  'mqttws31.min.js',
+  'js/vendor/mqttws31.min.js',
+  'js/vendor/supabase-2.45.4.js',
   'css/app.css',
   'js/core.js',
   'js/theme-device-audio.js',
@@ -14,6 +15,7 @@ const STATIC_ASSETS = [
   'js/account.js',
   'js/navigation-plan.js',
   'js/focus.js',
+  'js/friend-protocol.js',
   'js/friends.js',
   'js/stats.js',
   'js/main.js',
@@ -54,42 +56,16 @@ self.addEventListener('activate', (event) => {
   );
 });
 
-let focusCompletionTimeout = null;
-
+/*
+ * Not: Eski sürüm burada setTimeout ile "seans bitince bildirim" zamanlıyordu.
+ * Tarayıcılar boşta kalan Service Worker'ı genellikle 30 sn - birkaç dk içinde
+ * durdurur; durunca zamanlayıcı da kaybolur. Yani 25 dk'lık bir bildirim için
+ * güvenilir değildi ve kaldırıldı. Uygulama tamamen kapalıyken bildirim
+ * göndermenin güvenilir yolu bir sunucudan Web Push göndermektir (bu projede yok).
+ * Seans bitişi sayfa tarafında zaman damgasından hesaplanır.
+ */
 self.addEventListener('message', (event) => {
-  if (!event.data) return;
-  if (event.data.type === 'SKIP_WAITING') {
-    self.skipWaiting();
-  }
-  
-  // 📱 Kilit ekranında / arka planda süre dolduğunda tam zamanında kutlama bildirimi fırlat
-  if (event.data.type === 'SCHEDULE_FOCUS_COMPLETION') {
-    if (focusCompletionTimeout) {
-      clearTimeout(focusCompletionTimeout);
-      focusCompletionTimeout = null;
-    }
-    const target = event.data.targetEndTime;
-    const now = Date.now();
-    const delay = Math.max(0, target - now);
-    
-    focusCompletionTimeout = setTimeout(() => {
-      self.registration.showNotification(`🎉 Tebrikler! ${event.data.taskTitle || 'Odak Seansı'} Tamamlandı!`, {
-        body: `${event.data.treeType || '🌳'} ${event.data.treeName || 'Yeni Ağacın'} ormanına eklendi. Harika bir iş çıkardın!`,
-        icon: 'icons/icon-192.png',
-        badge: 'icons/icon-192.png',
-        vibrate: [200, 100, 200],
-        tag: 'odak-completed',
-        renotify: true
-      });
-    }, delay);
-  }
-  
-  if (event.data.type === 'CANCEL_FOCUS_COMPLETION') {
-    if (focusCompletionTimeout) {
-      clearTimeout(focusCompletionTimeout);
-      focusCompletionTimeout = null;
-    }
-  }
+  if (event.data && event.data.type === 'SKIP_WAITING') self.skipWaiting();
 });
 
 self.addEventListener('notificationclick', (event) => {
@@ -109,48 +85,38 @@ self.addEventListener('notificationclick', (event) => {
 });
 
 self.addEventListener('fetch', (event) => {
-  const url = new URL(event.request.url);
+  const req = event.request;
+  if (req.method !== 'GET') return;
+  const url = new URL(req.url);
+  // Sadece kendi dosyalarımızı önbelleğe alırız (Supabase, MQTT vb. doğrudan ağa gider).
+  if (url.origin !== self.location.origin) return;
 
-  // 1. API çağrılarını ve Supabase bulut isteklerini doğrudan ağa gönder
-  if (url.pathname.includes('/api/') || url.hostname.includes('supabase.co')) {
-    return;
-  }
-
-  // 2. Gezinme (Sayfa Yükleme): Network-First (En güncel sürümü anında al, çevrimdışıysa önbellekten aç)
-  if (event.request.mode === 'navigate' || (event.request.headers.get('accept') && event.request.headers.get('accept').includes('text/html'))) {
+  // Ses ve ikonlar büyük ve nadiren değişir: önce önbellek.
+  if (/\/(sounds|icons)\//.test(url.pathname)) {
     event.respondWith(
-      fetch(event.request).then((networkResponse) => {
-        if (networkResponse && networkResponse.status === 200) {
-          const toCache = networkResponse.clone();
-          caches.open(CACHE_NAME).then((cache) => cache.put(event.request, toCache));
+      caches.match(req).then((cached) => cached || fetch(req).then((res) => {
+        if (res && res.status === 200 && res.type === 'basic') {
+          const copy = res.clone();
+          caches.open(CACHE_NAME).then((c) => c.put(req, copy));
         }
-        return networkResponse;
-      }).catch(() => {
-        return caches.match(event.request).then((cached) => {
-          if (cached) return cached;
-          return caches.match('./').then((rootCached) => {
-            return rootCached || caches.match('index.html');
-          });
-        });
-      })
+        return res;
+      }))
     );
     return;
   }
 
-  // 3. Statik dosyalar: Önbellek Öncelikli (Cache First)
+  // HTML / JS / CSS: önce ağ (güncel sürüm), ağ yoksa önbellek (çevrimdışı çalışma).
   event.respondWith(
-    caches.match(event.request).then((cached) => {
+    fetch(req).then((res) => {
+      if (res && res.status === 200 && res.type === 'basic') {
+        const copy = res.clone();
+        caches.open(CACHE_NAME).then((c) => c.put(req, copy));
+      }
+      return res;
+    }).catch(() => caches.match(req, { ignoreSearch: req.mode === 'navigate' }).then((cached) => {
       if (cached) return cached;
-      return fetch(event.request).then((response) => {
-        if (!response || response.status !== 200 || response.type !== 'basic') {
-          return response;
-        }
-        const toCache = response.clone();
-        caches.open(CACHE_NAME).then((cache) => {
-          cache.put(event.request, toCache);
-        });
-        return response;
-      }).catch(() => cached);
-    })
+      if (req.mode === 'navigate') return caches.match('index.html');
+      return Response.error();
+    }))
   );
 });
