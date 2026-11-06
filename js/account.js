@@ -42,12 +42,15 @@ function saveUserProfileToStorage(){
   } catch(e){}
 }
 
+// Avatar: yalnızca emoji ya da base64 data:image kabul edilir (OdakCore.normalizeAvatar).
+// Eskiden uzaktan gelen her http(s)/blob URL'si <img src> içine kaçışsız konuyordu.
 function renderAvatarHtml(av, size = 36){
-  if(!av) av = '👤';
-  if(typeof av === 'string' && (av.startsWith('data:') || av.startsWith('http:') || av.startsWith('https:') || av.startsWith('blob:') || av.startsWith('/'))){
-    return `<img src="${av}" alt="Profil Fotoğrafı" style="width:100%;height:100%;border-radius:50%;object-fit:cover;display:block;">`;
+  av = OdakCore.normalizeAvatar(av);
+  const px = Math.round((Number(size) || 36) * 0.58);
+  if(OdakCore.isImageAvatar(av)){
+    return `<img src="${esc(av)}" alt="Profil Fotoğrafı" style="width:100%;height:100%;border-radius:50%;object-fit:cover;display:block;">`;
   }
-  return `<span style="font-size:${Math.round(size * 0.58)}px;line-height:1;display:flex;align-items:center;justify-content:center;user-select:none;">${av}</span>`;
+  return `<span style="font-size:${px}px;line-height:1;display:flex;align-items:center;justify-content:center;user-select:none;">${esc(av)}</span>`;
 }
 
 function triggerPhotoUpload(){
@@ -106,7 +109,7 @@ function handlePhotoUpload(e){
 }
 
 function applyNewAvatar(av, isPhoto = false){
-  if(!av) av = '👤';
+  av = OdakCore.normalizeAvatar(av);
   userProfile.avatar = av;
   if(currentUser) currentUser.avatar = av;
 
@@ -183,8 +186,8 @@ function renderUserProfileUI(){
   const grid = document.getElementById('avatar-picker-grid');
   if(grid){
     grid.innerHTML = AVATAR_OPTIONS.map(av => `
-      <button type="button" class="avatar-btn ${av === displayAvatar ? 'selected' : ''}" onclick="selectProfileAvatar('${av}')" title="Avatar: ${av}">
-        ${av}
+      <button type="button" class="avatar-btn ${av === displayAvatar ? 'selected' : ''}" onclick="selectProfileAvatar(${jsArg(av)})" title="Avatar: ${esc(av)}">
+        ${esc(av)}
       </button>
     `).join('');
   }

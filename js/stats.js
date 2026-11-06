@@ -202,18 +202,18 @@ function renderSelectedDayDetail(){
     </div>
     ${dayNote ? `
       <div style="margin-top:8px;padding:6px 10px;background:var(--surface);border-left:3px solid var(--accent);border-radius:6px;font-size:11px;font-style:italic;color:var(--text1);">
-        “${dayNote}”
+        “${esc(dayNote)}”
       </div>` : ''}
     ${daySessions.length ? `
       <div style="display:flex;flex-direction:column;gap:5px;margin-top:8px;">
         ${daySessions.map(s => `
           <div style="display:flex;align-items:center;justify-content:space-between;background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:6px 9px;font-size:11px;">
             <div style="display:flex;align-items:center;gap:6px;min-width:0;flex:1;">
-              <span>${s.treeType || '🌳'}</span>
-              <span style="font-weight:700;color:var(--text1);word-break:break-word;">${s.title}</span>
-              ${s.cat ? `<span class="tag" style="padding:0 5px;font-size:9px;">${s.cat}</span>` : ''}
+              <span>${esc(s.treeType || '🌳')}</span>
+              <span style="font-weight:700;color:var(--text1);word-break:break-word;">${esc(s.title)}</span>
+              ${s.cat ? `<span class="tag" style="padding:0 5px;font-size:9px;">${esc(s.cat)}</span>` : ''}
             </div>
-            <span style="font-weight:800;color:var(--accent);flex-shrink:0;">${s.dur} dk · ${s.time || ''}</span>
+            <span style="font-weight:800;color:var(--accent);flex-shrink:0;">${esc(s.dur)} dk · ${esc(s.time || '')}</span>
           </div>
         `).join('')}
       </div>` : `
@@ -391,11 +391,11 @@ function renderStats(){
       catBarsEl.innerHTML = catList.map(item => {
         const isSelected = selectedStatsCategory === item.name;
         return `
-          <div class="stat-cat-row ${isSelected ? 'active-cat' : ''}" onclick="toggleCategoryFilter('${item.name}')" title="Bu kategoriyi filtrelemek için dokun">
+          <div class="stat-cat-row ${isSelected ? 'active-cat' : ''}" onclick="toggleCategoryFilter(${jsArg(item.name)})" title="Bu kategoriyi filtrelemek için dokun">
             <div class="stat-cat-header">
               <div class="stat-cat-left">
-                <span style="font-size:16px;">${item.trees[0] || '🏷️'}</span>
-                <span class="stat-cat-name">${item.name}</span>
+                <span style="font-size:16px;">${esc(item.trees[0] || '🏷️')}</span>
+                <span class="stat-cat-name">${esc(item.name)}</span>
                 ${isSelected ? '<span style="font-size:10px;background:var(--accent);color:#0E1612;padding:1px 5px;border-radius:4px;font-weight:800;">✓ Aktif</span>' : ''}
               </div>
               <div class="stat-cat-right">
@@ -408,7 +408,7 @@ function renderStats(){
             </div>
             <div style="display:flex;justify-content:space-between;font-size:11px;color:var(--text3);font-weight:600;">
               <span>🌳 ${item.count} ağaç</span>
-              <span>${item.trees.slice(0,4).join(' ')}</span>
+              <span>${esc(item.trees.slice(0,4).join(' '))}</span>
             </div>
           </div>
         `;
@@ -429,7 +429,7 @@ function renderStats(){
     if(selectedStatsCategory){
       filterBannerHtml = `
         <div class="cat-filter-banner" onclick="clearCategoryFilter()" title="Filtreyi kaldırmak için dokun">
-          <span>🏷️ "${selectedStatsCategory}" Filtresi (${displayHistory.length} Seans)</span>
+          <span>🏷️ "${esc(selectedStatsCategory)}" Filtresi (${displayHistory.length} Seans)</span>
           <span>✕ Kaldır</span>
         </div>`;
     }
@@ -473,13 +473,13 @@ function renderStats(){
         const treeIcons = d.trees.slice(0, 5).join(' ') + (d.trees.length > 5 ? ` +${d.trees.length - 5}` : '');
 
         return `
-          <div class="stat-day-card-row" onclick="selectCalendarDate('${d.rawDate}')" title="Takvimde detayını incelemek için dokun">
+          <div class="stat-day-card-row" onclick="selectCalendarDate(${jsArg(d.rawDate)})" title="Takvimde detayını incelemek için dokun">
             <div class="stat-day-left-col">
-              <div class="stat-day-title-txt">${titleLabel}</div>
+              <div class="stat-day-title-txt">${esc(titleLabel)}</div>
               <div class="stat-day-sub-txt">
                 <span>🌳 ${d.count} ağaç</span>
                 <span style="opacity:0.4;">·</span>
-                <span>${treeIcons}</span>
+                <span>${esc(treeIcons)}</span>
               </div>
             </div>
             <div class="stat-day-right-col">
@@ -499,16 +499,16 @@ function renderStats(){
       hl.innerHTML = `<div class="empty"><div class="ei">📭</div><p>Bu aralıkta kayıtlı plan veya odak bulunmuyor.</p></div>`;
     } else {
       hl.innerHTML = [...displayHistory].reverse().map(h => `
-        <div class="stat-session-card-row" onclick="showTreeDetail('${h.id}')" title="Plan ve odak detayını görmek için dokun">
-          <div class="stat-session-tree" style="font-size:26px;">${h.treeType || '🌳'}</div>
+        <div class="stat-session-card-row" onclick="showTreeDetail(${jsArg(h.id)})" title="Plan ve odak detayını görmek için dokun">
+          <div class="stat-session-tree" style="font-size:26px;">${esc(h.treeType || '🌳')}</div>
           <div class="stat-session-col">
             <div class="stat-session-top">
-              <span class="stat-session-title">${h.title}</span>
-              <span class="stat-session-dur">${h.dur} dk</span>
+              <span class="stat-session-title">${esc(h.title)}</span>
+              <span class="stat-session-dur">${esc(h.dur)} dk</span>
             </div>
             <div class="stat-session-bot">
-              <span class="stat-session-cat">🏷️ ${h.cat || 'Genel'} · ${h.treeName || 'Ağaç'}</span>
-              <span>${h.time || ''} · ${h.date || ''}</span>
+              <span class="stat-session-cat">🏷️ ${esc(h.cat || 'Genel')} · ${esc(h.treeName || 'Ağaç')}</span>
+              <span>${esc(h.time || '')} · ${esc(h.date || '')}</span>
             </div>
           </div>
         </div>`).join('');

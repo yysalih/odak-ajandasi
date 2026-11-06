@@ -286,10 +286,11 @@
 
     if (raw.inbox !== undefined) {
       if (!Array.isArray(raw.inbox)) throw new Error('inbox alanı geçersiz.');
-      out.inbox = raw.inbox.slice(0, 1000).map(n => {
-        if (typeof n === 'string') return cleanText(n, 500);
-        if (n && typeof n === 'object') return { ...n, text: cleanText(n.text, 500) };
-        return null;
+      out.inbox = raw.inbox.slice(0, 1000).map((n, i) => {
+        const text = cleanText(typeof n === 'string' ? n : n && n.text, 500);
+        if (!text) return null;
+        const id = n && Number.isFinite(Number(n.id)) ? Number(n.id) : i + 1;
+        return { id, text, done: !!(n && n.done), date: n && isValidDateKey(n.date) ? n.date : today };
       }).filter(Boolean);
     }
 

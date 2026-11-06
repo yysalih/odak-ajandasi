@@ -354,44 +354,44 @@ function taskCard(t){
   return `
   <div class="apple-task-card ${isDone ? 'is-done' : ''} draggable-card"
        draggable="true"
-       ondragstart="handleDragStart(event, ${t.id})"
+       ondragstart="handleDragStart(event, ${Number(t.id)})"
        ondragover="handleDragOver(event)"
        ondragleave="handleDragLeave(event)"
-       ondrop="handleDrop(event, ${t.id})"
+       ondrop="handleDrop(event, ${Number(t.id)})"
        ondragend="handleDragEnd(event)"
-       onclick="openFocus(${t.id})">
+       onclick="openFocus(${Number(t.id)})">
     
     <!-- Sol Saat Sütunu (Altlı Üstlü 07.30 - 15.30) -->
     <div class="task-time-col">
-      <span class="task-t-start">${times.start}</span>
-      ${times.end ? `<span class="task-t-dash">-</span><span class="task-t-end">${times.end}</span>` : ''}
+      <span class="task-t-start">${esc(times.start)}</span>
+      ${times.end ? `<span class="task-t-dash">-</span><span class="task-t-end">${esc(times.end)}</span>` : ''}
       ${t.start && !isDone ? `<span style="font-size:8.5px;color:var(--accent);font-weight:700;margin-top:2px;display:flex;align-items:center;gap:1px;" title="Başlangıç saatinden ~30 dk önce bildirim yapılır">🔔 30d</span>` : ''}
     </div>
 
     <!-- Ağaç Türü Rozeti -->
     <div class="task-leading">
-      <div class="task-tree-badge" title="${treeIco} Ağacı">${treeIco}</div>
+      <div class="task-tree-badge" title="${esc(treeIco)} Ağacı">${esc(treeIco)}</div>
     </div>
 
     <!-- Görev Gövdesi -->
     <div class="task-body">
       <!-- Üst Satır: Görev Başlığı ve Silme Butonu -->
       <div class="task-row-top">
-        <div class="task-title-line" title="${t.title}">${t.title}</div>
-        <button class="task-del-btn" onclick="event.stopPropagation();delTask(${t.id})" title="Görevi Sil">×</button>
+        <div class="task-title-line" title="${esc(t.title)}">${esc(t.title)}</div>
+        <button class="task-del-btn" onclick="event.stopPropagation();delTask(${Number(t.id)})" title="Görevi Sil">×</button>
       </div>
 
       <!-- Alt Satır: Kategori/Süre (Sol) ve Bitti/Play Butonu (Sağ) - Kusursuz Hizalama -->
       <div class="task-row-bottom">
         <div class="task-bottom-left">
-          ${t.cat ? `<span class="task-cat-pill">${t.cat}</span>` : ''}
-          <span class="task-dur-badge">⏳ ${t.dur} dk</span>
-          ${!isDone ? `<button type="button" class="task-quick-add-btn" onclick="event.stopPropagation();quickExtendTask(${t.id}, 15)" title="Süreye 15 dk ekle">+15d</button>` : ''}
+          ${t.cat ? `<span class="task-cat-pill">${esc(t.cat)}</span>` : ''}
+          <span class="task-dur-badge">⏳ ${esc(t.dur)} dk</span>
+          ${!isDone ? `<button type="button" class="task-quick-add-btn" onclick="event.stopPropagation();quickExtendTask(${Number(t.id)}, 15)" title="Süreye 15 dk ekle">+15d</button>` : ''}
         </div>
 
         <div class="task-bottom-right" onclick="event.stopPropagation()">
           ${!isDone ? `
-            <button class="task-play-btn" onclick="openFocus(${t.id})" title="Odağı Başlat">
+            <button class="task-play-btn" onclick="openFocus(${Number(t.id)})" title="Odağı Başlat">
               <span class="play-ico">▶</span>
               <span class="play-txt">Başla</span>
             </button>
@@ -575,16 +575,16 @@ function renderForest(){
       const isDead = (tree.failed || tree.treeType === '🥀');
       if(isDead){
         slotsHtml += `
-          <div class="garden-slot dead-slot" onclick="showSlotDetail(${slotIdx})" title="${tree.title} - Kurumuş Ağaç (Dokun: Detay)">
+          <div class="garden-slot dead-slot" onclick="showSlotDetail(${slotIdx})" title="${esc(tree.title)} - Kurumuş Ağaç (Dokun: Detay)">
             <span class="tree-ico" style="filter:grayscale(0.6);opacity:0.85;">🥀</span>
             <span class="tree-dur-tag" style="background:rgba(239,68,68,0.18);color:#ef4444;border:1px solid rgba(239,68,68,0.35);">Kurudu</span>
           </div>`;
       } else {
         const ico = tree.treeType || '🌳';
         slotsHtml += `
-          <div class="garden-slot" onclick="showSlotDetail(${slotIdx})" title="${tree.title} - ${tree.treeName || 'Ağaç'} (Dokun: Detay)">
-            <span class="tree-ico">${ico}</span>
-            <span class="tree-dur-tag">${tree.dur} dk</span>
+          <div class="garden-slot" onclick="showSlotDetail(${slotIdx})" title="${esc(tree.title)} - ${esc(tree.treeName || 'Ağaç')} (Dokun: Detay)">
+            <span class="tree-ico">${esc(ico)}</span>
+            <span class="tree-dur-tag">${esc(tree.dur)} dk</span>
           </div>`;
       }
     } else {
@@ -598,16 +598,16 @@ function renderForest(){
 
       if(allDead){
         slotsHtml += `
-          <div class="garden-slot dead-slot multi-slot" onclick="showSlotDetail(${slotIdx})" title="${titles} (${count} Kurumuş Ağaç - Dokun: Detay)">
+          <div class="garden-slot dead-slot multi-slot" onclick="showSlotDetail(${slotIdx})" title="${esc(titles)} (${count} Kurumuş Ağaç - Dokun: Detay)">
             <span class="slot-count-badge dead-badge">×${count}</span>
             <span class="tree-ico" style="filter:grayscale(0.6);opacity:0.85;">🥀</span>
             <span class="tree-dur-tag" style="background:rgba(239,68,68,0.18);color:#ef4444;border:1px solid rgba(239,68,68,0.35);">×${count} Kurudu</span>
           </div>`;
       } else {
         slotsHtml += `
-          <div class="garden-slot multi-slot" onclick="showSlotDetail(${slotIdx})" title="${titles} (${count} Ağaç - Dokun: Detay)">
+          <div class="garden-slot multi-slot" onclick="showSlotDetail(${slotIdx})" title="${esc(titles)} (${count} Ağaç - Dokun: Detay)">
             <span class="slot-count-badge">×${count}</span>
-            <span class="tree-ico">${ico}</span>
+            <span class="tree-ico">${esc(ico)}</span>
             <span class="tree-dur-tag">${totalSlotDur} dk</span>
           </div>`;
       }
@@ -653,14 +653,14 @@ function showSlotDetail(slotIdx){
       return `
         <div style="display:flex;justify-content:space-between;align-items:center;padding:8px 10px;background:var(--surface);border-radius:10px;border:1px solid var(--border);">
           <div style="display:flex;align-items:center;gap:8px;min-width:0;">
-            <span style="font-size:20px;line-height:1;">${tIco}</span>
+            <span style="font-size:20px;line-height:1;">${esc(tIco)}</span>
             <div style="text-align:left;min-width:0;">
-              <div style="font-weight:700;color:var(--text1);font-size:12px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${t.title}</div>
-              <div style="font-size:10.5px;color:var(--text3);margin-top:2px;">${t.cat || 'Genel'} · ${t.date || ''} ${t.time || ''}</div>
+              <div style="font-weight:700;color:var(--text1);font-size:12px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${esc(t.title)}</div>
+              <div style="font-size:10.5px;color:var(--text3);margin-top:2px;">${esc(t.cat || 'Genel')} · ${esc(t.date || '')} ${esc(t.time || '')}</div>
             </div>
           </div>
           <span style="font-size:11.5px;font-weight:800;color:${isD ? 'var(--danger,#ef4444)' : 'var(--accent)'};flex-shrink:0;margin-left:8px;">
-            ${isD ? 'Kurudu' : `${t.dur} dk`}
+            ${isD ? 'Kurudu' : `${esc(t.dur)} dk`}
           </span>
         </div>`;
     }).join('');
@@ -779,7 +779,7 @@ function triggerTaskReminder(task, diffMinutes = 30){
   const descEl = document.getElementById('reminder-modal-desc');
 
   if(titleEl) titleEl.textContent = task.title;
-  if(timeEl) timeEl.innerHTML = `<span>🕒</span> ${task.start} - ${task.end || '--.--'} (${task.dur || 25} dk)`;
+  if(timeEl) timeEl.innerHTML = `<span>🕒</span> ${esc(task.start)} - ${esc(task.end || '--.--')} (${esc(task.dur || 25)} dk)`;
   if(descEl) descEl.textContent = `"${task.title}" planınız yaklaşık ${diffMinutes} dakika sonra (${task.start}) başlayacak. Masanızı ve zihninizi hazırlayın! 🌱`;
 
   if(modal) modal.classList.add('active');
@@ -955,7 +955,7 @@ function initCatInput(){
     const list=catSuggestions.filter(c=>!f||c.toLowerCase().includes(f.toLowerCase()));
     if(!list.length){wrap.style.display='none';return;}
     wrap.style.display='flex';
-    wrap.innerHTML=list.map(c=>`<button type="button" class="cat-pill" onclick="pickCat('${c}')">${c}</button>`).join('');
+    wrap.innerHTML=list.map(c=>`<button type="button" class="cat-pill" onclick="pickCat(${jsArg(c)})">${esc(c)}</button>`).join('');
   }
   inp.addEventListener('focus',()=>render(inp.value));
   inp.addEventListener('input',()=>render(inp.value));

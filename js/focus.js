@@ -1065,7 +1065,7 @@ function failFocus(removedTreeInfo){
   if(cardEl) cardEl.className = 'foc-timer-card dead';
   
   if(removedTreeInfo){
-    document.getElementById('foc-msg').innerHTML = `<span style="color:var(--danger);font-weight:700;">Pes ettin:</span> 1 ağaç (${removedTreeInfo.treeName || 'Ağaç'} ${removedTreeInfo.treeType || '🌲'}) kurudu ve ormanından eksildi!`;
+    document.getElementById('foc-msg').innerHTML = `<span style="color:var(--danger);font-weight:700;">Pes ettin:</span> 1 ağaç (${esc(removedTreeInfo.treeName || 'Ağaç')} ${esc(removedTreeInfo.treeType || '🌲')}) kurudu ve ormanından eksildi!`;
   } else {
     document.getElementById('foc-msg').textContent = 'Odaktan vazgeçtin — fidanın kurudu.';
   }
@@ -1536,7 +1536,7 @@ function renderMainInbox(){
     const realIdx = inbox.indexOf(n);
     return `
       <div class="ibox-item" style="display:flex;align-items:center;justify-content:space-between;gap:8px;padding:8px 10px;background:var(--bg3);border-radius:10px;margin-bottom:6px;border:1px solid var(--border);">
-        <span style="font-size:12.5px;color:var(--text1);font-weight:600;flex:1;overflow:hidden;text-overflow:ellipsis;">${n.text}</span>
+        <span style="font-size:12.5px;color:var(--text1);font-weight:600;flex:1;overflow:hidden;text-overflow:ellipsis;">${esc(n.text)}</span>
         <div style="display:flex;align-items:center;gap:4px;flex-shrink:0;">
           <button type="button" class="btn-routine-pill" style="margin:0;padding:3px 8px;font-size:10.5px;background:var(--accent-light);color:var(--accent);border-color:transparent;" onclick="convertInboxToTask(${realIdx})" title="Bugünün Planına Ekle">
             📅 Plana Al

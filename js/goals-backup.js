@@ -195,7 +195,7 @@ function saveDailyGoalModal(){
     closeDailyGoalModal();
     showToast(`🎯 Günlük odak hedefi ${dailyGoalMinutes} dakika olarak ayarlandı!`);
   } else {
-    showToast('⚠️ Lütfen geçerli bir süre girin (15 - 960 dk)');
+    showToast('⚠️ Lütfen geçerli bir süre girin (15 - 1440 dk)');
   }
 }
 
@@ -247,8 +247,7 @@ function exportDataBackup(){
       streakDays,
       dailyNotes,
       dailyGoalMinutes,
-      userRoutines,
-      friendsList
+      userRoutines
     };
     const jsonStr = JSON.stringify(payload, null, 2);
     const blob = new Blob([jsonStr], { type: 'application/json' });
@@ -277,24 +276,40 @@ function importDataBackup(e){
   const reader = new FileReader();
   reader.onload = function(evt){
     try {
-      const data = JSON.parse(evt.target.result);
-      if(Array.isArray(data.tasks)) tasks = data.tasks;
-      if(Array.isArray(data.focusHistory)) focusHistory = data.focusHistory;
-      if(Array.isArray(data.inbox)) inbox = data.inbox;
-      if(data.streakDays) streakDays = data.streakDays;
+      // Dosya doğrulanmadan hiçbir alan kabul edilmez (bkz. OdakCore.sanitizeBackup):
+      // gelecekteki tarihler, 180 dk'dan uzun seanslar, günde 1440 dk'yı aşan toplam,
+      // bozuk tarih/kimlikler atılır. Seri sayısı dosyadan alınmaz, geçmişten hesaplanır.
+      const raw = JSON.parse(evt.target.result);
+      const { data, report } = OdakCore.sanitizeBackup(raw, toDateKey(new Date()));
+      if(data.tasks) tasks = data.tasks;
+      if(data.focusHistory) focusHistory = data.focusHistory;
+      if(data.inbox) inbox = data.inbox;
       if(data.dailyNotes) dailyNotes = data.dailyNotes;
       if(data.dailyGoalMinutes) dailyGoalMinutes = data.dailyGoalMinutes;
-      if(Array.isArray(data.userRoutines)) userRoutines = data.userRoutines;
-      if(Array.isArray(data.friendsList)) friendsList = data.friendsList;
+      if(data.userRoutines) userRoutines = data.userRoutines;
+      streakDays = calculateStreakDays();
 
       saveStateToStorage();
       renderMain();
       renderStats();
+      renderForest();
       updateDailyGoalUI();
-      showAppToast('Yedek başarıyla geri yüklendi! Verilerin güncellendi 🎉', '✅');
+      const dropped = report.tasksDropped + report.historyDropped;
+      if(dropped > 0){
+        showAppToast(`Yedek yüklendi. ${dropped} geçersiz kayıt atlandı.`, '⚠️');
+      } else {
+        showAppToast('Yedek başarıyla geri yüklendi! Verilerin güncellendi 🎉', '✅');
+      }
     } catch(err){
       alert('Yedek dosyası geçersiz veya bozuk: ' + err.message);
+    } finally {
+      e.target.value = '';
     }
   };
+  if(file.size > 5 * 1024 * 1024){
+    alert('Yedek dosyası çok büyük (en fazla 5 MB).');
+    e.target.value = '';
+    return;
+  }
   reader.readAsText(file);
 }

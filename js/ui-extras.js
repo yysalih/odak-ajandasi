@@ -1,10 +1,22 @@
 /* ══════════════════════════════════════════════════════
    GLOBAL BİLDİRİM TOAST YÖNETİCİSİ
    ══════════════════════════════════════════════════════ */
+// Bazı yerler showToast(...) çağırıyordu ama bu fonksiyon hiç tanımlı değildi
+// (ör. günlük hedef kaydedilince ReferenceError). Tek bir toast'a yönlendiriyoruz.
+function showToast(msg){ showAppToast(msg, 'ℹ️'); }
+
 function showAppToast(msg, icon = '🌿'){
   const toast = document.getElementById('app-toast');
   if(!toast) return;
-  toast.innerHTML = `<span style="font-size:13px;flex-shrink:0;">${icon}</span> <span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:270px;">${msg}</span>`;
+  // textContent: mesajlar görev başlığı / arkadaş adı içerebilir, HTML olarak yorumlanmamalı.
+  toast.textContent = '';
+  const iconEl = document.createElement('span');
+  iconEl.style.cssText = 'font-size:13px;flex-shrink:0;';
+  iconEl.textContent = String(icon ?? '');
+  const msgEl = document.createElement('span');
+  msgEl.style.cssText = 'overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:270px;';
+  msgEl.textContent = String(msg ?? '');
+  toast.append(iconEl, ' ', msgEl);
   toast.classList.add('show');
   clearTimeout(window._toastTimeout);
   window._toastTimeout = setTimeout(() => {
@@ -65,20 +77,20 @@ function renderRoutinesList(){
     const exists = tasks.some(t => t.date === activeKey && t.title === r.title);
     return `
       <div style="background:var(--bg3);border:1px solid ${exists ? 'rgba(82,199,133,0.35)' : 'var(--border)'};border-radius:12px;padding:9px 11px;display:flex;align-items:center;gap:10px;">
-        <input type="checkbox" data-routine-id="${r.id}" ${exists ? '' : 'checked'} style="width:16px;height:16px;cursor:pointer;accent-color:var(--accent);">
-        <span style="font-size:22px;line-height:1;">${r.treeType || '🌳'}</span>
+        <input type="checkbox" data-routine-id="${esc(r.id)}" ${exists ? '' : 'checked'} style="width:16px;height:16px;cursor:pointer;accent-color:var(--accent);">
+        <span style="font-size:22px;line-height:1;">${esc(r.treeType || '🌳')}</span>
         <div style="flex:1;min-width:0;">
-          <div style="font-size:13px;font-weight:700;color:var(--text1);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${r.title}</div>
+          <div style="font-size:13px;font-weight:700;color:var(--text1);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${esc(r.title)}</div>
           <div style="font-size:11px;color:var(--text3);display:flex;gap:6px;align-items:center;margin-top:2px;flex-wrap:wrap;">
-            <span class="tag" style="padding:1px 6px;font-size:10px;">${r.cat}</span>
-            <span>⏰ ${r.start} - ${r.end} (${r.dur} dk)</span>
+            <span class="tag" style="padding:1px 6px;font-size:10px;">${esc(r.cat)}</span>
+            <span>⏰ ${esc(r.start)} - ${esc(r.end)} (${esc(r.dur)} dk)</span>
           </div>
         </div>
         <div style="display:flex;flex-direction:column;align-items:flex-end;gap:3px;flex-shrink:0;">
           ${exists 
             ? `<span style="font-size:9px;background:rgba(82,199,133,0.18);color:var(--accent);padding:2px 6px;border-radius:6px;font-weight:700;">✓ Planda Var</span>` 
             : `<span style="font-size:9px;background:var(--border2);color:var(--text2);padding:2px 6px;border-radius:6px;font-weight:600;">➕ Eklenecek</span>`}
-          <button type="button" onclick="deleteUserRoutine('${r.id}')" style="background:transparent;border:none;color:var(--text3);font-size:11px;cursor:pointer;padding:2px 4px;" title="Rutin Şablonunu Sil">Sil</button>
+          <button type="button" onclick="deleteUserRoutine(${jsArg(r.id)})" style="background:transparent;border:none;color:var(--text3);font-size:11px;cursor:pointer;padding:2px 4px;" title="Rutin Şablonunu Sil">Sil</button>
         </div>
       </div>
     `;

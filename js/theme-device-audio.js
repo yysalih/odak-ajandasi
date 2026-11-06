@@ -1,3 +1,9 @@
+/* HTML kaçış yardımcıları (bkz. js/core.js).
+   esc(v)   : metni innerHTML içine güvenle koymak için.
+   jsArg(v) : inline onclick="fn(...)" içine güvenle string argüman koymak için. */
+const esc = OdakCore.escapeHtml;
+function jsArg(v){ return esc(JSON.stringify(String(v ?? ''))); }
+
 /* ══════════════════════════════════════════════════════
    GÜNEŞ DOĞUM / BATIM HESAPLAMA (TÜRKİYE / İSTANBUL)
    ══════════════════════════════════════════════════════ */

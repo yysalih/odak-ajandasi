@@ -341,12 +341,12 @@ function renderTreeSelectGrid(){
 
     html += `
       <div class="tree-opt ${isSelected ? 'active' : ''} ${!unlocked ? 'locked' : ''}"
-           onclick="handleTreeOptionClick('${tree.emoji}','${tree.name}')"
-           title="${unlocked ? tree.name : 'Kilitli: ' + tree.req.label}">
+           onclick="handleTreeOptionClick(${jsArg(tree.emoji)},${jsArg(tree.name)})"
+           title="${esc(unlocked ? tree.name : 'Kilitli: ' + tree.req.label)}">
         ${!unlocked ? `<span class="lock-badge">🔒</span>` : ''}
-        <span class="t-ico">${tree.emoji}</span>
-        <span class="t-name">${tree.name}</span>
-        ${tree.req ? `<span class="t-req-lbl">${tree.req.label}</span>` : ''}
+        <span class="t-ico">${esc(tree.emoji)}</span>
+        <span class="t-name">${esc(tree.name)}</span>
+        ${tree.req ? `<span class="t-req-lbl">${esc(tree.req.label)}</span>` : ''}
       </div>`;
   });
 
