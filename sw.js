@@ -1,9 +1,21 @@
-const CACHE_NAME = 'odak-pwa-v13';
+const CACHE_NAME = 'odak-pwa-v14';
 const STATIC_ASSETS = [
   './',
   'index.html',
   'manifest.json',
   'mqttws31.min.js',
+  'css/app.css',
+  'js/theme-device-audio.js',
+  'js/state.js',
+  'js/ui-extras.js',
+  'js/ambient.js',
+  'js/goals-backup.js',
+  'js/account.js',
+  'js/navigation-plan.js',
+  'js/focus.js',
+  'js/friends.js',
+  'js/stats.js',
+  'js/main.js',
   'icons/icon-192.png',
   'icons/icon-512.png',
   'icons/apple-touch-icon.png',
