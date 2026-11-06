@@ -155,7 +155,7 @@ function renderPlanCalendar(){
   for(let d=1; d<=totalDays; d++){
     const dKey = `${year}-${String(month+1).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
     const daySessions = planUnifiedList.filter(h => h.rawDate === dKey);
-    const dayMin = daySessions.reduce((a,b)=>a+(b.dur||0), 0);
+    const dayMin = OdakCore.sumMinutes(OdakCore.successful(daySessions));
     const dayTasks = (tasks || []).filter(t => !isMockStatsEntry(t) && t.date === dKey);
     const isToday = dKey === todayKey;
     const isSelected = dKey === planCalSelectedDateKey;
@@ -200,8 +200,8 @@ function renderPlanCalendarDayDetail(){
   const isToday = planCalSelectedDateKey === toDateKey(new Date());
 
   const planDayUnified = getUnifiedStatsList();
-  const daySessions = planDayUnified.filter(h => h.rawDate === planCalSelectedDateKey);
-  const totalMin = daySessions.reduce((a,b)=>a+(b.dur||0), 0);
+  const daySessions = OdakCore.successful(planDayUnified.filter(h => h.rawDate === planCalSelectedDateKey));
+  const totalMin = OdakCore.sumMinutes(daySessions);
   const treeCount = daySessions.length;
   const dayTasks = (tasks || []).filter(t => !isMockStatsEntry(t) && t.date === planCalSelectedDateKey);
 
@@ -288,107 +288,20 @@ function formatKeyToDisplayDate(key){
   return key;
 }
 
+// Seri, yalnızca BAŞARILI odak seansı olan ardışık günlerden hesaplanır.
 function calculateStreakDays(){
-  const list = getUnifiedStatsList();
-  if(!list.length) return 0;
-  const daysSet = new Set(list.map(item => item.rawDate || item.date).filter(Boolean));
-  if(!daysSet.size) return 0;
-  
-  const today = new Date();
-  let streak = 0;
-  let cur = new Date(today.getFullYear(), today.getMonth(), today.getDate());
-  const todayKey = toDateKey(cur);
-  
-  if(daysSet.has(todayKey)){
-    while(daysSet.has(toDateKey(cur))){
-      streak++;
-      cur.setDate(cur.getDate() - 1);
-    }
-  } else {
-    cur.setDate(cur.getDate() - 1);
-    while(daysSet.has(toDateKey(cur))){
-      streak++;
-      cur.setDate(cur.getDate() - 1);
-    }
-  }
-  return streak;
+  return OdakCore.calculateStreak(getUnifiedStatsList(), toDateKey(new Date()));
 }
 
+/*
+ * Tüm istatistiklerin tek kaynağı. Ayrıntı ve eski hatanın açıklaması: js/core.js → buildSessionList
+ * Planlanan (henüz çalışılmamış) görevler artık ağaç/dakika olarak sayılmaz.
+ */
 function getUnifiedStatsList(){
-  const cleanTasks = (tasks || []).filter(t => t && !isMockStatsEntry(t));
-  const cleanHistory = (focusHistory || []).filter(h => h && !isMockStatsEntry(h));
-
-  const unified = [];
-  const matchedHistoryIds = new Set();
-
-  cleanTasks.forEach(task => {
-    const rawDate = task.date || toDateKey(new Date());
-    const displayDate = formatKeyToDisplayDate(rawDate);
-    const timeStr = task.start ? formatTimeDot(task.start) : '';
-
-    const match = cleanHistory.find(h => 
-      !matchedHistoryIds.has(h.id) && 
-      (h.taskId === task.id || (h.title === task.title && (h.rawDate === rawDate || !h.rawDate)))
-    );
-
-    if(match){
-      matchedHistoryIds.add(match.id);
-      unified.push({
-        id: match.id,
-        taskId: task.id,
-        title: task.title,
-        cat: match.cat || task.cat || 'Genel',
-        treeType: match.treeType || task.treeType || '🌳',
-        treeName: match.treeName || task.treeName || 'Meşe',
-        dur: Number(match.dur) || Number(task.dur) || 25,
-        time: match.time || timeStr,
-        date: match.date || displayDate,
-        rawDate: match.rawDate || rawDate,
-        done: true,
-        failed: !!match.failed,
-        isTask: true
-      });
-    } else {
-      unified.push({
-        id: task.id,
-        taskId: task.id,
-        title: task.title,
-        cat: task.cat || 'Genel',
-        treeType: task.treeType || '🌳',
-        treeName: task.treeName || 'Meşe',
-        dur: Number(task.dur) || 25,
-        time: timeStr,
-        date: displayDate,
-        rawDate: rawDate,
-        done: !!task.done,
-        failed: false,
-        isTask: true
-      });
-    }
+  return OdakCore.buildSessionList(tasks, focusHistory, {
+    isExcluded: isMockStatsEntry,
+    todayKey: toDateKey(new Date())
   });
-
-  cleanHistory.forEach(h => {
-    if(!matchedHistoryIds.has(h.id)){
-      const rawDate = h.rawDate || toDateKey(new Date());
-      unified.push({
-        id: h.id,
-        taskId: h.taskId || null,
-        title: h.title || 'Odak Seansı',
-        cat: h.cat || 'Genel',
-        treeType: h.treeType || '🌳',
-        treeName: h.treeName || 'Meşe',
-        dur: Number(h.dur) || 25,
-        time: h.time || '',
-        date: h.date || formatKeyToDisplayDate(rawDate),
-        rawDate: rawDate,
-        done: !h.failed,
-        failed: !!h.failed,
-        isTask: false
-      });
-    }
-  });
-
-  return unified;
 }
 
 let selectedTreeEmoji='🌳';
@@ -411,13 +324,7 @@ const TREE_DEFS = [
 ];
 
 function isTreeUnlocked(tree){
-  if(!tree.req) return true;
-  if(tree.req.type === 'streak') return calculateStreakDays() >= tree.req.val;
-  if(tree.req.type === 'totalMin'){
-    const totalMinAll = getUnifiedStatsList().reduce((a,b)=>a+(b.dur||0), 0);
-    return totalMinAll >= tree.req.val;
-  }
-  return true;
+  return OdakCore.isTreeUnlocked(tree, getUnifiedStatsList(), toDateKey(new Date()));
 }
 
 function renderTreeSelectGrid(){
@@ -454,9 +361,9 @@ function handleTreeOptionClick(emoji, name){
   
   if(!isTreeUnlocked(tree)){
     if(tree.req.type === 'streak'){
-      alert(`🔒 ${tree.name} (${tree.emoji}) henüz kilitli!\nKilidi açmak için en az ${tree.req.val} günlük kesintisiz odak serisi yapmalısın. (Şu anki serin: ${streakDays} gün)`);
+      alert(`🔒 ${tree.name} (${tree.emoji}) henüz kilitli!\nKilidi açmak için en az ${tree.req.val} günlük kesintisiz odak serisi yapmalısın. (Şu anki serin: ${calculateStreakDays()} gün)`);
     } else {
-      const currentHours = (getUnifiedStatsList().reduce((a,b)=>a+(b.dur||0), 0) / 60).toFixed(1);
+      const currentHours = (OdakCore.sumMinutes(OdakCore.successful(getUnifiedStatsList())) / 60).toFixed(1);
       const reqHours = Math.round(tree.req.val / 60);
       alert(`🔒 ${tree.name} (${tree.emoji}) henüz kilitli!\nKilidi açmak için toplam en az ${reqHours} saat odaklanmalısın. (Şu an: ${currentHours} saat)`);
     }

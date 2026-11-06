@@ -5,6 +5,7 @@ const STATIC_ASSETS = [
   'manifest.json',
   'mqttws31.min.js',
   'css/app.css',
+  'js/core.js',
   'js/theme-device-audio.js',
   'js/state.js',
   'js/ui-extras.js',

@@ -135,7 +135,7 @@ function renderCalendar(){
   for(let d=1; d<=totalDays; d++){
     const dKey = `${year}-${String(month+1).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
     const daySessions = planUnifiedList.filter(h => h.rawDate === dKey);
-    const dayMin = daySessions.reduce((a,b)=>a+(b.dur||0), 0);
+    const dayMin = OdakCore.sumMinutes(OdakCore.successful(daySessions));
     const dayTasks = (tasks || []).filter(t => !isMockStatsEntry(t) && t.date === dKey);
     const isToday = dKey === todayKey;
     const isSelected = dKey === calSelectedDateKey;
@@ -181,8 +181,8 @@ function renderSelectedDayDetail(){
 
   const unifiedList = getUnifiedStatsList();
   const daySessions = unifiedList.filter(h => h.rawDate === calSelectedDateKey);
-  const totalMin = daySessions.reduce((a,b)=>a+(b.dur||0), 0);
-  const treeCount = daySessions.length;
+  const totalMin = OdakCore.sumMinutes(OdakCore.successful(daySessions));
+  const treeCount = OdakCore.successful(daySessions).length;
   const dayTasks = (tasks || []).filter(t => !isMockStatsEntry(t) && t.date === calSelectedDateKey);
   const dayNote = dailyNotes[calSelectedDateKey];
 
@@ -315,8 +315,8 @@ function renderStats(){
     scopedHistory = scopedHistory.filter(h => h.rawDate === activeDayKey);
     
     metricLabel = (activeDayKey === todayKey) ? 'Bugün' : 'Seçili Gün';
-    metricVal = `${scopedHistory.length} seans`;
-    metricSub = `${scopedHistory.reduce((a,b)=>a+(b.dur||0),0)} dk odak`;
+    metricVal = `${OdakCore.successful(scopedHistory).length} seans`;
+    metricSub = `${OdakCore.sumMinutes(OdakCore.successful(scopedHistory))} dk odak`;
   } else if(currentStatsScope === 'week'){
     scopedHistory = scopedHistory.filter(h => h.rawDate >= monKey && h.rawDate <= sunKey);
     const uniqueDays = new Set(scopedHistory.map(h => h.rawDate)).size;
@@ -336,7 +336,8 @@ function renderStats(){
   }
 
   // 1. Özet İstatistik Kutuları
-  const totalMin = scopedHistory.reduce((acc, h) => acc + (h.dur || 0), 0);
+  // Toplam odak: yalnızca tamamlanan seanslar. Pes edilen (kurumuş) seanslar listede görünür ama süreye eklenmez.
+  const totalMin = OdakCore.sumMinutes(OdakCore.successful(scopedHistory));
   const totalTrees = scopedHistory.filter(h => !h.failed && h.treeType !== '🥀').length;
   const timeFormatted = totalMin >= 120 
     ? `${(totalMin / 60).toFixed(1)} sa` 
@@ -372,7 +373,7 @@ function renderStats(){
       scopedHistory.forEach(h => {
         const c = h.cat || 'Genel';
         if(!catMap[c]) catMap[c] = { dur: 0, count: 0, trees: [] };
-        catMap[c].dur += (h.dur || 0);
+        if(!h.failed) catMap[c].dur += (h.dur || 0);
         if(!h.failed && h.treeType !== '🥀'){
           catMap[c].count += 1;
           if(h.treeType && !catMap[c].trees.includes(h.treeType)) catMap[c].trees.push(h.treeType);
@@ -448,8 +449,10 @@ function renderStats(){
             count: 0
           };
         }
-        dayMap[raw].totalMin += (h.dur || 0);
-        dayMap[raw].count += 1;
+        if(!h.failed){
+          dayMap[raw].totalMin += (h.dur || 0);
+          dayMap[raw].count += 1;
+        }
         if(h.treeType) dayMap[raw].trees.push(h.treeType);
       });
 
