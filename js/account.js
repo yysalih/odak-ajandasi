@@ -448,8 +448,7 @@ async function forceCloudSyncPush(){
       focus_history: focusHistory,
       inbox,
       daily_notes: dailyNotes,
-      daily_goal_minutes: dailyGoalMinutes,
-      updated_at: new Date().toISOString()
+      daily_goal_minutes: dailyGoalMinutes
     });
     if(error) throw error;
     const lbl = document.getElementById('cloud-last-sync-label');

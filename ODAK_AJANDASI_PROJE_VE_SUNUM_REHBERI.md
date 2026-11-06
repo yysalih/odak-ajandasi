@@ -1,5 +1,7 @@
 # 🌲 Odak Ajandası — Proje Tanıtım, Mimari ve Sunum Hazırlama Rehberi
 
+> **Düzeltme notu (Kasım 2026):** Bu belgedeki bazı abartılı ifadeler ("sektörde ilk", "sıfır gecikme", "sıfır bellek tüketimi", "%100 çevrimdışı") ölçülmemiş veya doğru olmadığı için kaldırıldı. Güncel ve doğru teknik açıklama, güvenlik modeli ve bilinen sınırlar için `README.md` esas alınmalıdır.
+
 > **Kullanım Amacı:** Bu belge, Google Gemini veya benzeri bir üretken yapay zekaya verilerek **Odak Ajandası** projesi için profesyonel bir sunum (pitch deck, teknik proje sunumu, dönem projesi veya yatırımcı sunumu) hazırlatmak amacıyla hazırlanmıştır.  
 > Bu belgeyi ve ekteki `ODAK_AJANDASI_TUM_KONUSMALAR.md` dosyasını Gemini'ye ilettiğinizde, Gemini projenin fikrinden son kod satırına kadar tüm sürece hakim olacaktır.
 
@@ -27,8 +29,8 @@
 ### 🟢 Odak Ajandası'nın Çözümü:
 1. **Net Zaman Blokları (A5 Ajanda Ruhu):** Sabah 08:00'den gece 23:30'a kadar günü net saat dilimlerine bölen zaman bloklama arayüzü.
 2. **Kayıp Korkusu (Loss Aversion):** Odaklanılan süre boyunca fidan büyür. Kullanıcı pes ederse veya seansı terk ederse fidan kurur ve ormanından 1 ağaç eksilir.
-3. **Web Üzerinde Kilit Ekranı Entegrasyonu (Sektörde İlklerden):** Bir PWA olmasına rağmen, telefon kilitlendiğinde iOS Dynamic Island, iOS Kilit Ekranı ve Android Kilit Ekranında **canlı 512×512 kapak resmi ve saniye saniye sayaç** çalışır.
-4. **Sıfır Gecikme & %100 Çevrimdışı (Offline-First):** Kurulum gerektirmeyen, internet olmasa bile çalışan hafif Service Worker (PWA) mimarisi.
+3. **Kilit Ekranında Medya Kartı:** Seans sürerken arka planda sessiz bir ses çalınır ve MediaSession API ile medya kartına kalan süreyi gösteren bir kapak resmi verilir. Bu, müzik uygulamalarının kullandığı standart bir web API'sidir; davranışı tarayıcı ve işletim sistemine göre değişir.
+4. **Çevrimdışı Çalışma:** Service Worker uygulama dosyalarını önbelleğe alır; internet yokken plan ve odak seansı çalışır. Arkadaş ve bulut özellikleri internet gerektirir.
 
 ---
 
@@ -36,7 +38,7 @@
 
 | Alan | Kullanılan Teknoloji | Sağlanan Yetenek |
 | :--- | :--- | :--- |
-| **Ön Yüz (Frontend)** | Vanilla JavaScript (ES6+), HTML5, CSS3 Glassmorphism | Sıfır framework yükü, anında açılış (0.1s TTI), 60 FPS akıcı animasyonlar |
+| **Ön Yüz (Frontend)** | Düz JavaScript, HTML, CSS | Framework ve derleme adımı yok (açılış süresi ölçülmedi) |
 | **Arka Plan & Kilit Ekranı** | Web Audio API + MediaSession API | Telefon kilitlendiğinde veya ekran kapandığında iOS/Android kilit ekranında canlı medya widget'ı |
 | **Dinamik Kapak Motoru** | HTML5 Canvas 2D Engine (512×512) | Kilit ekranında canlı yeşil halka, ağaç emojisi ve okunabilir dijital sayaç çizimi |
 | **Akıllı Ses Yönetimi** | Web Audio API + Gerçek Stüdyo Kayıtları | Yağmur, Kafe, Orman, Dalga sesleri; foreground'da mikrofon serbest, background'da canlı kilit ekranı |
@@ -91,7 +93,7 @@ Gemini'ye bu taslağı vererek doğrudan sunum içeriğini, slayt notlarını ve
 
 ### 🔹 Slayt 5: Teknik Atılım — Web Tabanlı Kilit Ekranı Entegrasyonu
 * **Maddeler:**
-  * Web standartlarında bir ilk: PWA üzerinden iOS Dynamic Island ve Kilit Ekranı canlı bildirimi.
+  * MediaSession API ile kilit ekranı medya kartında kalan süre (standart API, cihaza göre değişir).
   * 512×512 Canvas motoru ile gerçek zamanlı dinamik kilit ekranı kapağı.
   * Hiçbir native mağaza indirmesi gerekmeden tarayıcı üzerinden native deneyim.
 
@@ -109,8 +111,8 @@ Gemini'ye bu taslağı vererek doğrudan sunum içeriğini, slayt notlarını ve
 
 ### 🔹 Slayt 8: Mimari & Teknoloji Yığını
 * **Maddeler:**
-  * Frameworksüz saf JavaScript — Yüksek hız, sıfır bellek tüketimi.
-  * Service Worker v11 ile %100 çevrimdışı çalışma.
+  * Framework kullanmayan düz JavaScript; dosyalar `js/` altında modüllere ayrıldı.
+  * Service Worker ile çevrimdışı önbellek (arkadaş/bulut özellikleri hariç).
   * Otomatik güncelleme algılama motoru ve veri yedekleme (JSON / Firestore hazır).
 
 ### 🔹 Slayt 9: Geliştirme Yolculuğu (5 Günde 139 İterasyon)
